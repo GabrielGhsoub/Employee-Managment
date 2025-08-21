@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
+import { ExternalApiFailedException } from './exceptions/external-api-failed.exception';
 
 @Injectable()
 export class ExternalApiService {
@@ -33,7 +34,10 @@ export class ExternalApiService {
       return response.data.results;
     } catch (error) {
       this.logger.error({ error }, 'Failed to fetch data from external API');
-      throw new Error('Could not fetch data from external API.');
+      if (error instanceof Error) {
+        throw new ExternalApiFailedException(error.message);
+      }
+      throw new ExternalApiFailedException('An unknown error occurred');
     }
   }
 }

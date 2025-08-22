@@ -8,4 +8,7 @@ ignoredBuiltDependencies:
   - unrs-resolver
 
 onlyBuiltDependencies:
+  - '@swc/core'
   - better-sqlite3
+  - esbuild
+  - sqlite3

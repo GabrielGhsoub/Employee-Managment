@@ -53,6 +53,8 @@ export class EmployeeMapper {
       jobTitle,
       department,
       location,
+      createdAt: new Date(), 
+      updatedAt: new Date(), 
     };
   }
 }

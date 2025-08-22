@@ -9,16 +9,24 @@ lerna-debug.log*
 
 # Dependency directories
 node_modules/
-dist/
 .pnp
 .pnp.js
 
-# Build output
+# Build and Test output
+dist/
 build/
+coverage/
+.nestjs/cache
 
 # dotenv environment variables file
 .env
 .env.test
 
-# VSCode
+# IDE / Editor
 .vscode/
+
+# OS generated files
+.DS_Store
+
+# sql
+*.sqlite

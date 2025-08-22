@@ -1,147 +1,178 @@
 // src/employees/employees.service.spec.ts
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { EmployeesService } from './employees.service';
 import { ExternalApiService } from './external-api.service';
 import { EmployeeMapper } from './employee.mapper';
-import { ConfigService } from '@nestjs/config';
-import { getCacheManagerMock } from '../common/mocks/cache-manager.mock';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { getLoggerToken } from 'nestjs-pino'; // <-- Import getLoggerToken
 import { getPinoLoggerMock } from '../common/mocks/pino-logger.mock';
 import { Employee } from './entities/employee.entity';
+import { NotFoundException, ConflictException } from '@nestjs/common';
+import { CreateEmployeeDto } from './dto/create-employee.dto';
 
 describe('EmployeesService', () => {
   let service: EmployeesService;
+  let repository: Repository<Employee>;
   let externalApiService: ExternalApiService;
-  let cacheManager: any;
 
-  const mockEmployees: Employee[] = [
-    {
-      id: '1',
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john.doe@example.com',
-      phone: '123-456-7890',
-      pictureUrl: '',
-      jobTitle: 'Software Engineer',
-      department: 'Engineering',
-      location: 'Austin',
-    },
-    {
-      id: '2',
-      firstName: 'Jane',
-      lastName: 'Smith',
-      email: 'jane.smith@example.com',
-      phone: '098-765-4321',
-      pictureUrl: '',
-      jobTitle: 'Product Designer',
-      department: 'Design',
-      location: 'San Francisco',
-    },
-  ];
+  const mockEmployee: Employee = {
+    id: '1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed',
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'john.doe@example.com',
+    phone: '123-456-7890',
+    pictureUrl: '',
+    jobTitle: 'Software Engineer',
+    department: 'Engineering',
+    location: 'Austin',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockRepository = {
+    create: jest.fn().mockImplementation(dto => dto),
+    save: jest.fn().mockResolvedValue(mockEmployee),
+    find: jest.fn().mockResolvedValue([mockEmployee]),
+    findOneBy: jest.fn().mockResolvedValue(mockEmployee),
+    preload: jest.fn().mockResolvedValue(mockEmployee),
+    delete: jest.fn().mockResolvedValue({ affected: 1 }),
+    count: jest.fn().mockResolvedValue(0),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EmployeesService,
         {
+          provide: getRepositoryToken(Employee),
+          useValue: mockRepository,
+        },
+        {
           provide: ExternalApiService,
           useValue: {
-            fetchRawEmployees: jest.fn(),
+            fetchRawEmployees: jest.fn().mockResolvedValue([]),
           },
         },
         {
           provide: EmployeeMapper,
           useValue: {
-            toEntity: jest.fn().mockImplementation((user) => ({
-              id: user.login.uuid,
-              firstName: user.name.first,
-              lastName: user.name.last,
-              email: user.email,
-              phone: user.phone,
-              pictureUrl: user.picture.large,
-              jobTitle: 'Software Engineer',
-              department: 'Engineering',
-              location: `${user.location.city}, ${user.location.state}`,
-            })),
+            toEntity: jest.fn(),
           },
         },
         {
-          provide: ConfigService,
-          useValue: {
-            get: jest.fn().mockReturnValue(300),
-          },
-        },
-        {
-          provide: CACHE_MANAGER,
-          useValue: getCacheManagerMock(),
-        },
-        {
-          provide: getLoggerToken(EmployeesService.name),
+          provide: 'PinoLogger:EmployeesService',
           useValue: getPinoLoggerMock(),
         },
       ],
     }).compile();
 
     service = module.get<EmployeesService>(EmployeesService);
+    repository = module.get<Repository<Employee>>(getRepositoryToken(Employee));
     externalApiService = module.get<ExternalApiService>(ExternalApiService);
-    cacheManager = module.get(CACHE_MANAGER);
+
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
-  describe('find', () => {
-    it('should filter employees by department', async () => {
-      cacheManager.get.mockResolvedValue(mockEmployees);
-      const result = await service.find('Engineering');
-      expect(result).toHaveLength(1);
-      expect(result[0].department).toBe('Engineering');
-    });
+  describe('create', () => {
+    it('should create and return an employee when email does not exist', async () => {
+      mockRepository.findOneBy.mockResolvedValue(null);
 
-    it('should filter employees by title', async () => {
-      cacheManager.get.mockResolvedValue(mockEmployees);
-      const result = await service.find(undefined, 'Product Designer');
-      expect(result).toHaveLength(1);
-      expect(result[0].jobTitle).toBe('Product Designer');
-    });
+      const { id, createdAt, updatedAt, ...createDtoData } = mockEmployee;
+      const createDto: CreateEmployeeDto = createDtoData;
 
-    it('should filter employees by location', async () => {
-        cacheManager.get.mockResolvedValue(mockEmployees);
-        const result = await service.find(undefined, undefined, 'Austin');
-        expect(result).toHaveLength(1);
-        expect(result[0].location).toBe('Austin');
+      mockRepository.create.mockImplementation(emp => emp);
+      mockRepository.save.mockResolvedValue(mockEmployee);
+
+      const result = await service.create(createDto);
+
+      expect(mockRepository.findOneBy).toHaveBeenCalledWith({ email: createDto.email });
+      expect(mockRepository.create).toHaveBeenCalledWith({
+        ...createDto,
+        id: expect.any(String),
       });
+      expect(mockRepository.save).toHaveBeenCalled();
+      expect(result).toEqual(mockEmployee);
+    });
+
+    it('should throw ConflictException if email already exists', async () => {
+      mockRepository.findOneBy.mockResolvedValue(mockEmployee);
+
+      const { id, createdAt, updatedAt, ...createDtoData } = mockEmployee;
+      const createDto: CreateEmployeeDto = createDtoData;
+
+      await expect(service.create(createDto)).rejects.toThrow(ConflictException);
+      expect(mockRepository.findOneBy).toHaveBeenCalledWith({ email: createDto.email });
+      expect(mockRepository.save).not.toHaveBeenCalled();
+    });
   });
 
-  describe('caching', () => {
-    it('should fetch from external API when cache is empty', async () => {
-      cacheManager.get.mockResolvedValue(undefined);
-      const mockRawUsers = [
-        {
-          login: { uuid: '1' },
-          name: { first: 'John', last: 'Doe' },
-          email: 'john.doe@example.com',
-          phone: '123-456-7890',
-          picture: { large: '' },
-          location: { city: 'Austin', state: 'Texas' },
-        },
-      ];
-      (externalApiService.fetchRawEmployees as jest.Mock).mockResolvedValue(mockRawUsers);
-  
-      await service.find();
-  
-      expect(externalApiService.fetchRawEmployees).toHaveBeenCalledTimes(1);
-      expect(cacheManager.set).toHaveBeenCalled();
+  describe('find', () => {
+    it('should return an array of employees', async () => {
+      const result = await service.find({});
+      expect(result).toEqual([mockEmployee]);
+      expect(repository.find).toHaveBeenCalled();
     });
-  
-    it('should NOT fetch from external API when cache has data', async () => {
-      cacheManager.get.mockResolvedValue(mockEmployees);
-  
-      await service.find();
-  
+  });
+
+  describe('findOne', () => {
+    it('should return a single employee', async () => {
+      mockRepository.findOneBy.mockResolvedValue(mockEmployee);
+      const result = await service.findOne(mockEmployee.id);
+      expect(result).toEqual(mockEmployee);
+      expect(repository.findOneBy).toHaveBeenCalledWith({ id: mockEmployee.id });
+    });
+
+    it('should throw NotFoundException if employee not found', async () => {
+      mockRepository.findOneBy.mockResolvedValue(null);
+      await expect(service.findOne('bad-id')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('update', () => {
+    it('should update and return an employee', async () => {
+      const updateDto = { firstName: 'Johnny' };
+      const result = await service.update(mockEmployee.id, updateDto);
+      expect(repository.preload).toHaveBeenCalledWith({ id: mockEmployee.id, ...updateDto });
+      expect(repository.save).toHaveBeenCalledWith(mockEmployee);
+      expect(result).toEqual(mockEmployee);
+    });
+
+    it('should throw NotFoundException if employee to update not found', async () => {
+      mockRepository.preload.mockResolvedValue(null);
+      await expect(service.update('bad-id', {})).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove an employee', async () => {
+      await service.remove(mockEmployee.id);
+      expect(repository.delete).toHaveBeenCalledWith(mockEmployee.id);
+    });
+
+    it('should throw NotFoundException if employee to remove not found', async () => {
+      mockRepository.delete.mockResolvedValue({ affected: 0 });
+      await expect(service.remove('bad-id')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('seeding', () => {
+    it('should fetch from external API when database is empty', async () => {
+      mockRepository.count.mockResolvedValue(0);
+      const mockRawUsers = [{ login: { uuid: '1' } }];
+      (externalApiService.fetchRawEmployees as jest.Mock).mockResolvedValue(mockRawUsers);
+      await service.onModuleInit();
+      expect(externalApiService.fetchRawEmployees).toHaveBeenCalledTimes(1);
+      expect(repository.save).toHaveBeenCalled();
+    });
+
+    it('should NOT fetch from external API when database has data', async () => {
+      mockRepository.count.mockResolvedValue(100);
+      await service.onModuleInit();
       expect(externalApiService.fetchRawEmployees).not.toHaveBeenCalled();
     });
   });

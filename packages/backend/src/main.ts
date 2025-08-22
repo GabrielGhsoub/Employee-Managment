@@ -16,8 +16,19 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('Employee Directory API')
-    .setDescription('API for managing the company employee directory')
+    .setDescription(
+      'A comprehensive API for managing the company\'s employee directory. \n\nThis API provides endpoints for creating, reading, updating, and deleting employee records. It also supports advanced features like pagination, filtering, and searching.',
+    )
     .setVersion('1.0')
+    .setContact(
+      'API Support',
+      'https://gabrielghsoub.com',
+      'ghoussoubgabriel@gmail.com',
+    )
+    .setLicense(
+      'Apache 2.0',
+      'https://www.apache.org/licenses/LICENSE-2.0.html',
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

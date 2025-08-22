@@ -5,9 +5,14 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { CreateEmployeeDto } from '../src/employees/dto/create-employee.dto';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Employee } from '../src/employees/entities/employee.entity';
+import { Repository } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
 
 describe('EmployeesController (e2e)', () => {
   let app: INestApplication;
+  let employeeRepository: Repository<Employee>;
   let createdEmployeeId: string;
 
   const createEmployeeDto: CreateEmployeeDto = {
@@ -29,7 +34,16 @@ describe('EmployeesController (e2e)', () => {
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(new ValidationPipe());
     await app.init();
+    
+    employeeRepository = moduleFixture.get<Repository<Employee>>(
+      getRepositoryToken(Employee),
+    );
   });
+
+  beforeEach(async () => {
+    await employeeRepository.query('DELETE FROM employee;');
+  });
+
 
   afterAll(async () => {
     await app.close();
@@ -72,6 +86,15 @@ describe('EmployeesController (e2e)', () => {
   });
 
   describe('/employees/:id (GET)', () => {
+    beforeEach(async () => {
+        const newEmployee = employeeRepository.create({
+            ...createEmployeeDto,
+            id: uuidv4(), // Fix: Manually add a UUID
+        });
+        const saved = await employeeRepository.save(newEmployee);
+        createdEmployeeId = saved.id;
+    })
+
     it('should return a single employee by ID', () => {
       return request(app.getHttpServer())
         .get(`/employees/${createdEmployeeId}`)
@@ -91,6 +114,14 @@ describe('EmployeesController (e2e)', () => {
   });
 
   describe('/employees/:id (PATCH)', () => {
+      beforeEach(async () => {
+        const newEmployee = employeeRepository.create({
+            ...createEmployeeDto,
+            id: uuidv4(), // Fix: Manually add a UUID
+        });
+        const saved = await employeeRepository.save(newEmployee);
+        createdEmployeeId = saved.id;
+      })
     it('should update an employee', () => {
       const updatedFirstName = 'E2E Updated';
       return request(app.getHttpServer())
@@ -105,16 +136,29 @@ describe('EmployeesController (e2e)', () => {
   });
 
   describe('/employees/:id (DELETE)', () => {
+      beforeEach(async () => {
+        const newEmployee = employeeRepository.create({
+            ...createEmployeeDto,
+            id: uuidv4(), // Fix: Manually add a UUID
+        });
+        const saved = await employeeRepository.save(newEmployee);
+        createdEmployeeId = saved.id;
+      })
     it('should delete an employee', () => {
       return request(app.getHttpServer())
         .delete(`/employees/${createdEmployeeId}`)
-        .expect(200); 
+        .expect(204); 
     });
 
     it('should return 404 after deleting', () => {
         return request(app.getHttpServer())
-          .get(`/employees/${createdEmployeeId}`)
-          .expect(404);
+            .delete(`/employees/${createdEmployeeId}`)
+            .expect(204)
+            .then(() => {
+                return request(app.getHttpServer())
+                    .get(`/employees/${createdEmployeeId}`)
+                    .expect(404);
+            });
     });
   });
 });

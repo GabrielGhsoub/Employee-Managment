@@ -1,8 +1,15 @@
 // src/employees/employees.service.ts
 
-import { Injectable, NotFoundException, OnModuleInit, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  OnModuleInit,
+  ConflictException,
+  Inject,
+} from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, ILike } from 'typeorm';
+import { Repository, FindOptionsWhere, ILike, Not } from 'typeorm';
 import { Employee } from './entities/employee.entity';
 import { ExternalApiService } from './external-api.service';
 import { EmployeeMapper } from './employee.mapper';
@@ -11,6 +18,8 @@ import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { QueryEmployeeDto } from './dto/query-employee.dto';
 import { v4 as uuidv4 } from 'uuid';
+import { Cache } from 'cache-manager';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class EmployeesService implements OnModuleInit {
@@ -21,10 +30,28 @@ export class EmployeesService implements OnModuleInit {
     private readonly employeeMapper: EmployeeMapper,
     @InjectPinoLogger(EmployeesService.name)
     private readonly logger: PinoLogger,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly configService: ConfigService,
   ) {}
 
   async onModuleInit() {
-    await this.seedDatabase();
+    if (this.configService.get('NODE_ENV') !== 'test') {
+      await this.seedDatabase();
+    }
+  }
+
+  /**
+   * Invalidates all cache entries by resetting the cache store.
+   * This is called on any write operation (create, update, delete).
+   */
+  private async invalidateCache() {
+    const store = (this.cacheManager as any).store;
+    if (store && typeof store.reset === 'function') {
+      await store.reset();
+      this.logger.info('Employee cache invalidated.');
+    } else {
+      this.logger.warn('Cache store does not have a reset method. Skipping cache invalidation.');
+    }
   }
 
   private async seedDatabase() {
@@ -36,9 +63,7 @@ export class EmployeesService implements OnModuleInit {
 
     this.logger.info('Database is empty. Seeding with initial data...');
     const rawUsers = await this.externalApiService.fetchRawEmployees();
-    const employees = rawUsers.map((user) =>
-      this.employeeMapper.toEntity(user),
-    );
+    const employees = rawUsers.map((user) => this.employeeMapper.toEntity(user));
 
     await this.employeeRepository.save(employees);
     this.logger.info('Database seeded successfully.');
@@ -51,17 +76,28 @@ export class EmployeesService implements OnModuleInit {
     if (existingEmployee) {
       throw new ConflictException(`Employee with email "${email}" already exists.`);
     }
-    
+
     const newEmployee = this.employeeRepository.create({
-        ...createEmployeeDto,
-        phone: createEmployeeDto.phone ?? '',
-        pictureUrl: createEmployeeDto.pictureUrl ?? '', 
-        id: uuidv4(),
+      ...createEmployeeDto,
+      phone: createEmployeeDto.phone ?? '',
+      pictureUrl: createEmployeeDto.pictureUrl ?? '',
+      id: uuidv4(),
     });
-    return this.employeeRepository.save(newEmployee);
+
+    const savedEmployee = await this.employeeRepository.save(newEmployee);
+    await this.invalidateCache();
+    return savedEmployee;
   }
 
   async find(query: QueryEmployeeDto): Promise<Employee[]> {
+    const cacheKey = `employees_find_${JSON.stringify(query)}`;
+    const cachedData = await this.cacheManager.get<Employee[]>(cacheKey);
+
+    if (cachedData) {
+      this.logger.debug({ query }, 'Returning cached employees');
+      return cachedData;
+    }
+
     this.logger.debug({ query }, 'Finding employees with filters');
 
     const { department, title, location, search, sortBy, sortOrder } = query;
@@ -80,29 +116,59 @@ export class EmployeesService implements OnModuleInit {
       where.push(baseConditions);
     }
 
-    return this.employeeRepository.find({
+    const employees = await this.employeeRepository.find({
       where,
       order: sortBy && sortOrder ? { [sortBy]: sortOrder } : {},
     });
+
+    await this.cacheManager.set(cacheKey, employees);
+    return employees;
   }
 
   async findOne(id: string): Promise<Employee> {
+    const cacheKey = `employee_${id}`;
+    const cachedData = await this.cacheManager.get<Employee>(cacheKey);
+
+    if (cachedData) {
+      this.logger.debug({ id }, 'Returning cached employee');
+      return cachedData;
+    }
+
     const employee = await this.employeeRepository.findOneBy({ id });
     if (!employee) {
       throw new NotFoundException(`Employee with ID "${id}" not found`);
     }
+
+    await this.cacheManager.set(cacheKey, employee);
     return employee;
   }
 
   async update(id: string, updateEmployeeDto: UpdateEmployeeDto): Promise<Employee> {
+    if (updateEmployeeDto.email) {
+      const existingEmployee = await this.employeeRepository.findOneBy({
+        email: updateEmployeeDto.email,
+        id: Not(id),
+      });
+
+      if (existingEmployee) {
+        throw new ConflictException(
+          `Employee with email "${updateEmployeeDto.email}" already exists.`,
+        );
+      }
+    }
+
     const employee = await this.employeeRepository.preload({
       id,
       ...updateEmployeeDto,
     });
+
     if (!employee) {
       throw new NotFoundException(`Employee with ID "${id}" not found`);
     }
-    return this.employeeRepository.save(employee);
+
+    const savedEmployee = await this.employeeRepository.save(employee);
+    await this.invalidateCache();
+    return savedEmployee;
   }
 
   async remove(id: string): Promise<void> {
@@ -110,5 +176,6 @@ export class EmployeesService implements OnModuleInit {
     if (result.affected === 0) {
       throw new NotFoundException(`Employee with ID "${id}" not found`);
     }
+    await this.invalidateCache();
   }
 }

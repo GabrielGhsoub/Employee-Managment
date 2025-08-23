@@ -10,8 +10,6 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",

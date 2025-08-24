@@ -165,10 +165,12 @@ const EmployeeForm = ({ open, onClose, employee, onSuccess }: EmployeeFormProps)
       TransitionComponent={Transition}
       PaperProps={{
         sx: {
-          borderRadius: { xs: 0, sm: 3 },
+          borderRadius: { xs: 0, sm: 2 },
           overflow: 'hidden',
+          // [CHANGE] Increased max height and width for better visibility
           maxHeight: { xs: '100vh', sm: '90vh' },
-          margin: { xs: 0, sm: 2 },
+          margin: { xs: 0, sm: 1 },
+          width: { xs: '100%', sm: 'min(700px, 90vw)' }
         },
       }}
     >
@@ -195,18 +197,18 @@ const EmployeeForm = ({ open, onClose, employee, onSuccess }: EmployeeFormProps)
       </DialogTitle>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <DialogContent 
-          sx={{ 
-            pt: { xs: 2, sm: 3 }, 
-            pb: { xs: 2, sm: 3 },
-            px: { xs: 2, sm: 3 },
+        <DialogContent
+          sx={{
+            pt: { xs: 1.5, sm: 2 },
+            pb: { xs: 1.5, sm: 2 },
+            px: { xs: 2, sm: 2.5 },
             overflowY: 'auto',
-            maxHeight: { xs: 'calc(100vh - 180px)', sm: 'calc(90vh - 180px)' },
+            maxHeight: { xs: 'calc(100vh - 140px)', sm: 'calc(90vh - 140px)' },
           }}
         >
-          <Stack spacing={3}>
+          <Stack spacing={2}>
             {/* Avatar Preview */}
-            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -215,11 +217,11 @@ const EmployeeForm = ({ open, onClose, employee, onSuccess }: EmployeeFormProps)
                 <Avatar
                   src={pictureUrl}
                   sx={{
-                    width: 100,
-                    height: 100,
+                    width: { xs: 70, sm: 80 },
+                    height: { xs: 70, sm: 80 },
                     bgcolor: theme.palette.primary.main,
-                    fontSize: '2rem',
-                    boxShadow: theme.shadows[3],
+                    fontSize: { xs: '1.5rem', sm: '1.75rem' },
+                    boxShadow: theme.shadows[2],
                   }}
                 >
                   {!pictureUrl && firstName && lastName && getInitials(firstName, lastName)}
@@ -241,13 +243,13 @@ const EmployeeForm = ({ open, onClose, employee, onSuccess }: EmployeeFormProps)
               )}
             </AnimatePresence>
 
-            <Stack spacing={2}>
+            <Stack spacing={1.5}>
               {/* Personal Information */}
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                 Personal Information
               </Typography>
 
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: { xs: 1.5, sm: 2 } }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: { xs: 1.5, sm: 1.5 } }}>
                 <Box>
                 <Controller
                   name="firstName"
@@ -296,11 +298,11 @@ const EmployeeForm = ({ open, onClose, employee, onSuccess }: EmployeeFormProps)
               </Box>
 
               {/* Contact Information */}
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 1 }}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 0.5 }}>
                 Contact Information
               </Typography>
 
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: { xs: 1.5, sm: 2 } }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: { xs: 1.5, sm: 1.5 } }}>
                 <Box>
                 <Controller
                   name="email"
@@ -350,11 +352,11 @@ const EmployeeForm = ({ open, onClose, employee, onSuccess }: EmployeeFormProps)
               </Box>
 
               {/* Job Information */}
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 1 }}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 0.5 }}>
                 Job Information
               </Typography>
 
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: { xs: 1.5, sm: 2 } }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: { xs: 1.5, sm: 1.5 } }}>
                 <Box>
                 <Controller
                   name="jobTitle"
@@ -403,7 +405,7 @@ const EmployeeForm = ({ open, onClose, employee, onSuccess }: EmployeeFormProps)
               </Box>
 
               <Controller
-                name="location"
+                  name="location"
                   control={control}
                   render={({ field }) => (
                     <TextField
@@ -424,7 +426,7 @@ const EmployeeForm = ({ open, onClose, employee, onSuccess }: EmployeeFormProps)
                 />
 
               {/* Profile Picture */}
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 1 }}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 0.5 }}>
                 Profile Picture (Optional)
               </Typography>
                 <Controller
@@ -454,19 +456,22 @@ const EmployeeForm = ({ open, onClose, employee, onSuccess }: EmployeeFormProps)
 
         <DialogActions
           sx={{
-            px: { xs: 2, sm: 3 },
-            py: { xs: 1.5, sm: 2 },
+            px: { xs: 2, sm: 2.5 },
+            py: { xs: 1.5, sm: 1.5 },
             borderTop: `1px solid ${theme.palette.divider}`,
             gap: 1,
             flexDirection: { xs: 'column-reverse', sm: 'row' },
           }}
         >
           <Button
+            // [CHANGE] Updated button style
+            variant="outlined"
+            color="secondary"
             onClick={handleClose}
             disabled={isSubmitting}
-            sx={{ 
-              borderRadius: 2, 
-              width: { xs: '100%', sm: 'auto' } 
+            sx={{
+              borderRadius: 2,
+              width: { xs: '100%', sm: 'auto' }
             }}
           >
             Cancel
@@ -479,11 +484,7 @@ const EmployeeForm = ({ open, onClose, employee, onSuccess }: EmployeeFormProps)
               borderRadius: 2,
               minWidth: 100,
               width: { xs: '100%', sm: 'auto' },
-              background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.light} 90%)`,
-              boxShadow: '0 3px 5px 2px rgba(33, 203, 243, .3)',
-              '&:hover': {
-                background: `linear-gradient(45deg, ${theme.palette.primary.dark} 30%, ${theme.palette.primary.main} 90%)`,
-              },
+              // [CHANGE] Removed custom gradient styles for a cleaner look
             }}
           >
             {isSubmitting ? 'Saving...' : isEditMode ? 'Update' : 'Create'}

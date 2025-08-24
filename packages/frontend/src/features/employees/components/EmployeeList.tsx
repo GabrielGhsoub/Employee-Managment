@@ -13,8 +13,6 @@ import {
   TablePagination,
   Paper,
   Skeleton,
-  Fade,
-  Zoom,
   Table,
   TableBody,
   TableCell,
@@ -33,7 +31,6 @@ import {
   Work as WorkIcon,
   Business as BusinessIcon,
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
 import type { Employee } from '../types';
 
 interface EmployeeListProps {
@@ -90,31 +87,12 @@ const EmployeeList = memo(({
     return colors[index];
   };
 
-  const cardVariants = {
-    hidden: { opacity: 0, scale: 0.8 },
-    visible: (index: number) => ({
-      opacity: 1,
-      scale: 1,
-      transition: {
-        delay: index * 0.05,
-        duration: 0.3,
-        type: 'spring' as const,
-        stiffness: 100,
-      },
-    }),
-    hover: {
-      scale: 1.02,
-      transition: {
-        duration: 0.2,
-      },
-    },
-  };
-
   const renderSkeletons = () => {
-    return Array.from(new Array(rowsPerPage)).map((_, index) => (
+    const skeletonCount = Math.min(rowsPerPage, 8);
+    return Array.from(new Array(skeletonCount)).map((_, index) => (
       <Box key={`skeleton-${index}`}>
         <Card sx={{ height: '100%' }}>
-          <Skeleton variant="rectangular" height={200} />
+          <Skeleton variant="rectangular" height={180} />
           <CardContent>
             <Skeleton variant="text" sx={{ fontSize: '1.5rem' }} />
             <Skeleton variant="text" />
@@ -130,234 +108,279 @@ const EmployeeList = memo(({
   };
 
   const renderGridView = () => (
-    <Box sx={{ 
-      display: 'grid', 
-      gridTemplateColumns: {
-        xs: '1fr',
-        sm: 'repeat(auto-fill, minmax(280px, 1fr))',
-        md: 'repeat(auto-fill, minmax(300px, 1fr))'
-      }, 
-      gap: { xs: 2, sm: 3 } 
+    <Box sx={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+      gap: { xs: 2, sm: 2.5, md: 3 },
+      width: '100%',
     }}>
       {isLoading && employees.length === 0 ? (
         renderSkeletons()
       ) : (
-        <AnimatePresence mode="popLayout">
-          {employees.map((employee, index) => (
-            <Box key={employee.id}>
-              <motion.div
-                custom={index}
-                initial="hidden"
-                animate="visible"
-                exit="hidden"
-                variants={cardVariants}
-                whileHover="hover"
-                layout
-                onHoverStart={() => setHoveredCard(employee.id)}
-                onHoverEnd={() => setHoveredCard(null)}
-                style={{ height: '100%' }}
-              >
-                <Card
+        employees.map((employee) => (
+          <Card
+            key={employee.id}
+            onMouseEnter={() => setHoveredCard(employee.id)}
+            onMouseLeave={() => setHoveredCard(null)}
+            sx={{
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              position: 'relative',
+              borderRadius: 2,
+              transition: theme.transitions.create(['transform', 'box-shadow', 'border-color'], {
+                duration: theme.transitions.duration.short,
+                easing: theme.transitions.easing.easeInOut,
+              }),
+              boxShadow: hoveredCard === employee.id ? theme.shadows[4] : theme.shadows[1],
+              border: `1px solid ${hoveredCard === employee.id ? theme.palette.primary.light : 'transparent'}`,
+              '&:hover': {
+                transform: 'translateY(-5px)',
+                boxShadow: theme.shadows[8],
+                borderColor: theme.palette.primary.main,
+              },
+            }}
+          >
+            <Box sx={{ position: 'relative' }}>
+              {employee.pictureUrl ? (
+                <CardMedia
+                  component="img"
+                  height={180}
+                  image={employee.pictureUrl}
+                  alt={`${employee.firstName} ${employee.lastName}`}
                   sx={{
-                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: 'center',
+                  }}
+                />
+              ) : (
+                <Box
+                  sx={{
+                    height: 180,
                     display: 'flex',
-                    flexDirection: 'column',
-                    position: 'relative',
-                    overflow: 'visible',
-                    borderRadius: 3,
-                    background: hoveredCard === employee.id
-                      ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`
-                      : theme.palette.background.paper,
-                    transition: 'all 0.3s ease',
-                    boxShadow: hoveredCard === employee.id
-                      ? '0 10px 30px rgba(0,0,0,0.3)'
-                      : theme.shadows[2],
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: '4px',
-                      background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                      borderRadius: '12px 12px 0 0',
-                      opacity: hoveredCard === employee.id ? 1 : 0,
-                      transition: 'opacity 0.3s ease',
-                    },
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: `linear-gradient(135deg, ${alpha(getAvatarColor(employee.firstName), 0.1)} 0%, ${alpha(getAvatarColor(employee.lastName), 0.1)} 100%)`,
                   }}
                 >
-                  <Box sx={{ position: 'relative' }}>
-                    {employee.pictureUrl ? (
-                      <CardMedia
-                        component="img"
-                        height="200"
-                        image={employee.pictureUrl}
-                        alt={`${employee.firstName} ${employee.lastName}`}
-                        sx={{
-                          objectFit: 'cover',
-                        }}
-                      />
-                    ) : (
-                      <Box
-                        sx={{
-                          height: 200,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          background: `linear-gradient(135deg, ${alpha(getAvatarColor(employee.firstName), 0.2)} 0%, ${alpha(getAvatarColor(employee.lastName), 0.3)} 100%)`,
-                        }}
-                      >
-                        <Avatar
-                          sx={{
-                            width: 80,
-                            height: 80,
-                            fontSize: '2rem',
-                            bgcolor: getAvatarColor(employee.firstName),
-                          }}
-                        >
-                          {getInitials(employee.firstName, employee.lastName)}
-                        </Avatar>
-                      </Box>
-                    )}
-                    
-                    <Fade in={hoveredCard === employee.id}>
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          top: 8,
-                          right: 8,
-                          display: 'flex',
-                          gap: 1,
-                        }}
-                      >
-                        <Tooltip title="Edit">
-                          <IconButton
-                            size="small"
-                            onClick={() => onEdit(employee)}
-                            sx={{
-                              bgcolor: alpha(theme.palette.background.paper, 0.9),
-                              '&:hover': {
-                                bgcolor: theme.palette.primary.main,
-                                color: 'white',
-                              },
-                            }}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton
-                            size="small"
-                            onClick={() => onDelete(employee)}
-                            sx={{
-                              bgcolor: alpha(theme.palette.background.paper, 0.9),
-                              '&:hover': {
-                                bgcolor: theme.palette.error.main,
-                                color: 'white',
-                              },
-                            }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </Fade>
-                  </Box>
+                  <Avatar
+                    sx={{
+                      width: 80,
+                      height: 80,
+                      fontSize: '2rem',
+                      bgcolor: getAvatarColor(employee.firstName),
+                      boxShadow: theme.shadows[2],
+                      fontWeight: 600,
+                    }}
+                  >
+                    {getInitials(employee.firstName, employee.lastName)}
+                  </Avatar>
+                </Box>
+              )}
 
-                  <CardContent sx={{ flexGrow: 1, pb: 1 }}>
-                    <Typography variant="h6" gutterBottom fontWeight="bold">
-                      {employee.firstName} {employee.lastName}
-                    </Typography>
-                    
-                    <Stack spacing={0.5}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <WorkIcon fontSize="small" color="action" />
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {employee.jobTitle}
-                        </Typography>
-                      </Box>
-                      
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <BusinessIcon fontSize="small" color="action" />
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {employee.department}
-                        </Typography>
-                      </Box>
-                      
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <LocationIcon fontSize="small" color="action" />
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {employee.location}
-                        </Typography>
-                      </Box>
-                    </Stack>
-
-                    <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap' }}>
-                      <Zoom in={true} style={{ transitionDelay: '100ms' }}>
-                        <Tooltip title={employee.email}>
-                          <Chip
-                            icon={<EmailIcon />}
-                            label="Email"
-                            size="small"
-                            variant="outlined"
-                            onClick={() => window.location.href = `mailto:${employee.email}`}
-                            sx={{
-                              cursor: 'pointer',
-                              '&:hover': {
-                                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                borderColor: theme.palette.primary.main,
-                              },
-                            }}
-                          />
-                        </Tooltip>
-                      </Zoom>
-                      {employee.phone && (
-                        <Zoom in={true} style={{ transitionDelay: '200ms' }}>
-                          <Tooltip title={employee.phone}>
-                            <Chip
-                              icon={<PhoneIcon />}
-                              label="Call"
-                              size="small"
-                              variant="outlined"
-                              onClick={() => window.location.href = `tel:${employee.phone}`}
-                              sx={{
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  bgcolor: alpha(theme.palette.secondary.main, 0.1),
-                                  borderColor: theme.palette.secondary.main,
-                                },
-                              }}
-                            />
-                          </Tooltip>
-                        </Zoom>
-                      )}
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </motion.div>
+              {hoveredCard === employee.id && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    display: 'flex',
+                    gap: 0.5,
+                  }}
+                >
+                  <Tooltip title="Edit">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(employee);
+                      }}
+                      sx={{
+                        bgcolor: alpha(theme.palette.background.paper, 0.9),
+                        backdropFilter: 'blur(8px)',
+                        '&:hover': {
+                          bgcolor: theme.palette.primary.main,
+                          color: 'white',
+                        },
+                      }}
+                    >
+                      <EditIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Delete">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(employee);
+                      }}
+                      sx={{
+                        bgcolor: alpha(theme.palette.background.paper, 0.9),
+                        backdropFilter: 'blur(8px)',
+                        '&:hover': {
+                          bgcolor: theme.palette.error.main,
+                          color: 'white',
+                        },
+                      }}
+                    >
+                      <DeleteIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              )}
             </Box>
-          ))}
-        </AnimatePresence>
+
+            <CardContent sx={{
+              flexGrow: 1,
+              p: 2,
+              '&:last-child': { pb: 2 }
+            }}>
+              <Typography
+                variant="h6"
+                gutterBottom
+                fontWeight="600"
+                sx={{
+                  fontSize: '1.1rem',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  mb: 1.5,
+                }}
+              >
+                {employee.firstName} {employee.lastName}
+              </Typography>
+
+              <Stack spacing={1} sx={{ mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <WorkIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, flexShrink: 0 }} />
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      fontSize: '0.875rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {employee.jobTitle}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <BusinessIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, flexShrink: 0 }} />
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      fontSize: '0.875rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {employee.department}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <LocationIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, flexShrink: 0 }} />
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      fontSize: '0.875rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {employee.location}
+                  </Typography>
+                </Box>
+              </Stack>
+
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  mt: 'auto',
+                }}
+              >
+                <Tooltip title={employee.email}>
+                  <Chip
+                    icon={<EmailIcon />}
+                    label="Email"
+                    size="small"
+                    variant="outlined"
+                    onClick={() => window.location.href = `mailto:${employee.email}`}
+                    sx={{
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      height: 28,
+                      borderColor: alpha(theme.palette.primary.main, 0.3),
+                      color: theme.palette.primary.main,
+                      '&:hover': {
+                        bgcolor: alpha(theme.palette.primary.main, 0.08),
+                        borderColor: theme.palette.primary.main,
+                      },
+                      '& .MuiChip-icon': {
+                        fontSize: 16,
+                        color: theme.palette.primary.main,
+                      },
+                    }}
+                  />
+                </Tooltip>
+                {employee.phone && (
+                  <Tooltip title={employee.phone}>
+                    <Chip
+                      icon={<PhoneIcon />}
+                      label="Call"
+                      size="small"
+                      variant="outlined"
+                      onClick={() => window.location.href = `tel:${employee.phone}`}
+                      sx={{
+                        cursor: 'pointer',
+                        fontSize: '0.75rem',
+                        height: 28,
+                        borderColor: alpha(theme.palette.success.main, 0.3),
+                        color: theme.palette.success.main,
+                        '&:hover': {
+                          bgcolor: alpha(theme.palette.success.main, 0.08),
+                          borderColor: theme.palette.success.main,
+                        },
+                        '& .MuiChip-icon': {
+                          fontSize: 16,
+                          color: theme.palette.success.main,
+                        },
+                      }}
+                    />
+                  </Tooltip>
+                )}
+              </Stack>
+            </CardContent>
+          </Card>
+        ))
       )}
     </Box>
   );
 
   const renderListView = () => (
-    <TableContainer 
-      component={Paper} 
-      sx={{ 
+    <TableContainer
+      component={Paper}
+      elevation={0}
+      sx={{
         borderRadius: 2,
-        overflowX: 'auto',
-        maxWidth: '100%'
+        border: `1px solid ${theme.palette.divider}`,
       }}
     >
-      <Table sx={{ minWidth: { xs: 650, sm: 750 } }}>
+      <Table sx={{ minWidth: { xs: 300, sm: 650 } }}>
         <TableHead>
           <TableRow>
             <TableCell>Employee</TableCell>
-            <TableCell>Job Title</TableCell>
-            <TableCell>Department</TableCell>
-            <TableCell>Location</TableCell>
+            <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Job Title</TableCell>
+            <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Department</TableCell>
+            <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>Location</TableCell>
             <TableCell>Contact</TableCell>
             <TableCell align="right">Actions</TableCell>
           </TableRow>
@@ -367,120 +390,138 @@ const EmployeeList = memo(({
             Array.from(new Array(rowsPerPage)).map((_, index) => (
               <TableRow key={`skeleton-${index}`}>
                 <TableCell><Skeleton /></TableCell>
-                <TableCell><Skeleton /></TableCell>
-                <TableCell><Skeleton /></TableCell>
-                <TableCell><Skeleton /></TableCell>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}><Skeleton /></TableCell>
+                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}><Skeleton /></TableCell>
+                <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}><Skeleton /></TableCell>
                 <TableCell><Skeleton /></TableCell>
                 <TableCell><Skeleton /></TableCell>
               </TableRow>
             ))
           ) : (
-            <AnimatePresence>
-              {employees.map((employee, index) => (
-                <TableRow
-                  key={employee.id}
-                  component={motion.tr}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ delay: index * 0.05 }}
-                  whileHover={{ backgroundColor: alpha(theme.palette.primary.main, 0.05) }}
-                  onHoverStart={() => setHoveredCard(employee.id)}
-                  onHoverEnd={() => setHoveredCard(null)}
-                  sx={{ cursor: 'pointer' }}
-                >
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar
-                        src={employee.pictureUrl}
+            employees.map((employee) => (
+              <TableRow
+                key={employee.id}
+                hover
+                onMouseEnter={() => setHoveredCard(employee.id)}
+                onMouseLeave={() => setHoveredCard(null)}
+                sx={{
+                  cursor: 'pointer',
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.primary.main, 0.05),
+                  }
+                }}
+              >
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar
+                      src={employee.pictureUrl}
+                      sx={{
+                        bgcolor: getAvatarColor(employee.firstName),
+                        width: 40,
+                        height: 40,
+                      }}
+                    >
+                      {!employee.pictureUrl && getInitials(employee.firstName, employee.lastName)}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="body2" fontWeight="medium">
+                        {employee.firstName} {employee.lastName}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
                         sx={{
-                          bgcolor: getAvatarColor(employee.firstName),
-                          width: 40,
-                          height: 40,
+                          display: { xs: 'none', sm: 'block' },
                         }}
                       >
-                        {!employee.pictureUrl && getInitials(employee.firstName, employee.lastName)}
-                      </Avatar>
-                      <Box>
-                        <Typography variant="body1" fontWeight="medium">
-                          {employee.firstName} {employee.lastName}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {employee.email}
-                        </Typography>
-                      </Box>
+                        {employee.email}
+                      </Typography>
                     </Box>
-                  </TableCell>
-                  <TableCell>{employee.jobTitle}</TableCell>
-                  <TableCell>{employee.department}</TableCell>
-                  <TableCell>{employee.location}</TableCell>
-                  <TableCell>
-                    <Stack direction="row" spacing={1}>
-                      <Tooltip title={employee.email}>
+                  </Box>
+                </TableCell>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{employee.jobTitle}</TableCell>
+                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{employee.department}</TableCell>
+                <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>{employee.location}</TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={0.5}>
+                    <Tooltip title={employee.email}>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.href = `mailto:${employee.email}`;
+                        }}
+                        sx={{
+                          color: theme.palette.primary.main,
+                          '&:hover': {
+                            bgcolor: alpha(theme.palette.primary.main, 0.1),
+                          },
+                        }}
+                      >
+                        <EmailIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    {employee.phone && (
+                      <Tooltip title={employee.phone}>
                         <IconButton
                           size="small"
                           onClick={(e) => {
                             e.stopPropagation();
-                            window.location.href = `mailto:${employee.email}`;
-                          }}
-                        >
-                          <EmailIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      {employee.phone && (
-                        <Tooltip title={employee.phone}>
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.location.href = `tel:${employee.phone}`;
-                            }}
-                          >
-                            <PhoneIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Stack>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
-                      <Tooltip title="Edit">
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEdit(employee);
+                            window.location.href = `tel:${employee.phone}`;
                           }}
                           sx={{
+                            color: theme.palette.success.main,
                             '&:hover': {
-                              color: theme.palette.primary.main,
+                              bgcolor: alpha(theme.palette.success.main, 0.1),
                             },
                           }}
                         >
-                          <EditIcon fontSize="small" />
+                          <PhoneIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDelete(employee);
-                          }}
-                          sx={{
-                            '&:hover': {
-                              color: theme.palette.error.main,
-                            },
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </AnimatePresence>
+                    )}
+                  </Stack>
+                </TableCell>
+                <TableCell align="right">
+                  <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                    <Tooltip title="Edit">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(employee);
+                        }}
+                        sx={{
+                          color: theme.palette.info.main,
+                          '&:hover': {
+                            bgcolor: alpha(theme.palette.info.main, 0.1),
+                          },
+                        }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(employee);
+                        }}
+                        sx={{
+                          color: theme.palette.error.main,
+                          '&:hover': {
+                            bgcolor: alpha(theme.palette.error.main, 0.1),
+                          },
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            ))
           )}
         </TableBody>
       </Table>
@@ -488,42 +529,44 @@ const EmployeeList = memo(({
   );
 
   return (
-    <Box>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        {viewMode === 'grid' ? renderGridView() : renderListView()}
-      </motion.div>
+    <Box sx={{ width: '100%' }}>
+      {viewMode === 'grid' ? renderGridView() : renderListView()}
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        <TablePagination
-          component="div"
-          count={totalItems}
-          page={page}
-          onPageChange={handleChangePage}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[6, 12, 24, 48]}
-          sx={{
-            mt: 3,
-            borderTop: `1px solid ${theme.palette.divider}`,
-            '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': {
-              mb: 0,
+      <TablePagination
+        component="div"
+        count={totalItems}
+        page={page}
+        onPageChange={handleChangePage}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        rowsPerPageOptions={[6, 12, 24, 48]}
+        sx={{
+          mt: 3,
+          borderTop: `1px solid ${theme.palette.divider}`,
+          // [CHANGE] Simplified and improved pagination styles for responsiveness
+          '.MuiTablePagination-toolbar': {
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 2,
+            py: 1,
+            px: 2,
+            [theme.breakpoints.up('sm')]: {
+              justifyContent: 'flex-end',
             },
-            '.MuiTablePagination-toolbar': {
-              flexDirection: { xs: 'column', sm: 'row' },
-              gap: { xs: 1, sm: 0 },
-              alignItems: { xs: 'stretch', sm: 'center' },
-            },
-          }}
-        />
-      </motion.div>
+          },
+          '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': {
+            margin: 0,
+          },
+          '.MuiTablePagination-spacer': {
+            display: 'none',
+          },
+          '.MuiTablePagination-actions': {
+            marginLeft: { sm: 2 },
+          },
+        }}
+      />
     </Box>
   );
 });

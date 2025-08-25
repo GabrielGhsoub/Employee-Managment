@@ -130,7 +130,7 @@ const EmployeeDirectory = () => {
         <ConfirmationModal
           open={deleteConfirmOpen}
           title="Delete Employee"
-          message={`Are you sure you want to delete ${employeeToDelete?.firstName} ${employeeToDelete?.lastName}? This action cannot be undone in the future`}
+          message={`Are you sure you want to delete ${employeeToDelete?.firstName} ${employeeToDelete?.lastName}? This action cannot be undone in the future!`}
           onConfirm={handleConfirmDelete}
           onCancel={handleDeleteCancel}
           confirmText="Delete"

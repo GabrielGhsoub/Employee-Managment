@@ -7,6 +7,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Employee } from './employees/entities/employee.entity';
+import { HealthController } from './health/health.controller';
 
 @Module({
   imports: [
@@ -87,7 +88,7 @@ import { Employee } from './employees/entities/employee.entity';
     }),
     EmployeesModule,
   ],
-  controllers: [],
+  controllers: [HealthController],
   providers: [],
 })
 export class AppModule {}

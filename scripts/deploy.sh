@@ -90,12 +90,10 @@ if [ -d "packages/frontend" ]; then
     success "Frontend built"
 fi
 
-# Prune dev dependencies for production and reinstall to ensure clean state
-log "Pruning development dependencies..."
-pnpm prune --prod
-log "Reinstalling production dependencies to ensure clean state..."
+# Install only production dependencies for the final artifact
+log "Installing production dependencies..."
 pnpm install --prod --frozen-lockfile
-success "Development dependencies pruned and production dependencies reinstalled"
+success "Production dependencies installed"
 
 
 # Install PM2 if not present

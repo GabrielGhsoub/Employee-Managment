@@ -25,12 +25,28 @@ import { Employee } from './employees/entities/employee.entity';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'better-sqlite3', 
-        database: 'employee-directory.sqlite',
-        entities: [Employee],
-        synchronize: true,
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const databaseUrl = configService.get('DATABASE_URL', 'employee-directory.sqlite');
+        let database = databaseUrl;
+        
+        // Handle file: URLs
+        if (databaseUrl.startsWith('file:')) {
+          database = databaseUrl.replace('file:', '');
+          
+          // Ensure directory exists
+          const dir = path.dirname(database);
+          if (dir && dir !== '.') {
+            await fs.mkdir(dir, { recursive: true });
+          }
+        }
+        
+        return {
+          type: 'better-sqlite3',
+          database,
+          entities: [Employee],
+          synchronize: true,
+        };
+      },
     }),
 
     LoggerModule.forRootAsync({

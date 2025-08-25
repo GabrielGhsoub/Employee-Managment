@@ -55,7 +55,6 @@ fi
 # Ensure the 'current' directory exists
 mkdir -p "$APP_DIR/current"
 
-# Change to the correct directory for deployment
 cd "$APP_DIR/current"
 
 # Install Node.js if not present
@@ -73,23 +72,29 @@ if ! command -v pnpm &> /dev/null; then
     success "pnpm installed"
 fi
 
-# Install dependencies
-log "Installing dependencies..."
-pnpm install --frozen-lockfile --prod
-success "Dependencies installed"
+# Install ALL dependencies for build step
+log "Installing all dependencies for build..."
+pnpm install --frozen-lockfile
+success "All dependencies installed"
 
-# Build applications if source is available
-if [ -d "packages/backend" ] && [ ! -d "packages/backend/dist" ]; then
+# Build applications
+if [ -d "packages/backend" ]; then
     log "Building backend..."
     pnpm --filter backend build
     success "Backend built"
 fi
 
-if [ -d "packages/frontend" ] && [ ! -d "packages/frontend/dist" ]; then
+if [ -d "packages/frontend" ]; then
     log "Building frontend..."
     pnpm --filter frontend build
     success "Frontend built"
 fi
+
+# Prune dev dependencies for production
+log "Pruning development dependencies..."
+pnpm prune --prod
+success "Development dependencies pruned"
+
 
 # Install PM2 if not present
 if ! command -v pm2 &> /dev/null; then
@@ -155,6 +160,7 @@ if [ -d "packages/frontend/dist" ]; then
     
     health_check "Frontend" "http://127.0.0.1:8080"
 fi
+
 
 # Save PM2 configuration
 pm2 save

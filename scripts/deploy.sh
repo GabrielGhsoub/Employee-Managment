@@ -77,17 +77,23 @@ log "Installing all dependencies for build..."
 pnpm install --frozen-lockfile
 success "All dependencies installed"
 
-# Build applications
-if [ -d "packages/backend" ]; then
+# Build applications (skip if already built by CI/CD)
+if [ -d "packages/backend" ] && [ ! -d "packages/backend/dist" ]; then
     log "Building backend..."
     pnpm --filter backend build
     success "Backend built"
+elif [ -d "packages/backend/dist" ]; then
+    log "Backend build artifacts found, skipping build step"
+    success "Backend build skipped (artifacts present)"
 fi
 
-if [ -d "packages/frontend" ]; then
+if [ -d "packages/frontend" ] && [ ! -d "packages/frontend/dist" ]; then
     log "Building frontend..."
     pnpm --filter frontend build
     success "Frontend built"
+elif [ -d "packages/frontend/dist" ]; then
+    log "Frontend build artifacts found, skipping build step"
+    success "Frontend build skipped (artifacts present)"
 fi
 
 # Install only production dependencies for the final artifact

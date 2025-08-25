@@ -42,7 +42,7 @@ describe('EmployeesService', () => {
   };
 
   const mockRepository = {
-    create: jest.fn().mockImplementation((dto) => dto),
+    create: jest.fn().mockImplementation((dto: CreateEmployeeDto) => dto),
     save: jest.fn().mockResolvedValue(mockEmployee),
     find: jest.fn().mockResolvedValue([mockEmployee]),
     findOneBy: jest.fn().mockResolvedValue(mockEmployee),

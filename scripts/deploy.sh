@@ -90,10 +90,12 @@ if [ -d "packages/frontend" ]; then
     success "Frontend built"
 fi
 
-# Prune dev dependencies for production
+# Prune dev dependencies for production and reinstall to ensure clean state
 log "Pruning development dependencies..."
 pnpm prune --prod
-success "Development dependencies pruned"
+log "Reinstalling production dependencies to ensure clean state..."
+pnpm install --prod --frozen-lockfile
+success "Development dependencies pruned and production dependencies reinstalled"
 
 
 # Install PM2 if not present
@@ -119,7 +121,7 @@ health_check() {
     local attempt=1
 
     while [ $attempt -le $max_attempts ]; do
-        if curl -f "$url" &>/dev/null; then
+        if curl -f --silent --output /dev/null "$url"; then
             success "$service health check passed"
             return 0
         fi
@@ -258,7 +260,8 @@ if ! systemctl is-active --quiet nginx; then
     warning "Nginx is not running"
 fi
 
-if curl -f "http://$SERVER_IP/health" &>/dev/null; then
+# Use the public IP for the final check through Nginx
+if curl -f --silent --output /dev/null "http://$SERVER_IP/health"; then
     success "Application is healthy and accessible"
 else
     warning "Application health check failed - manual intervention may be required"

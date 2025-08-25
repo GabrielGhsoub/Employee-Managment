@@ -12,6 +12,7 @@ NC='\033[0m'
 APP_DIR="/opt/employee-management"
 BACKUP_DIR="/opt/backups/employee-management"
 LOG_FILE="/var/log/employee-management-deploy.log"
+SERVER_IP="207.180.197.168"
 
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
@@ -62,6 +63,8 @@ log "Starting rollback to backup: $BACKUP_NAME"
 log "Stopping current services..."
 pm2 stop employee-backend 2>/dev/null || true
 pm2 stop employee-frontend 2>/dev/null || true
+pm2 delete employee-backend 2>/dev/null || true
+pm2 delete employee-frontend 2>/dev/null || true
 
 # Create rollback backup of current state
 if [ -d "$APP_DIR/current" ]; then
@@ -91,9 +94,9 @@ if [ -d "packages/backend" ]; then
 fi
 
 # Start frontend
-if [ -d "packages/frontend/dist" ]; then
+if [ -d "packages/frontend" ]; then
     cd packages/frontend
-    pm2 start serve --name employee-frontend -- -s dist -l 80
+    pm2 start serve --name employee-frontend -- -s dist -l 8080
     cd "$APP_DIR/current"
 fi
 
@@ -104,9 +107,9 @@ pm2 save
 log "Performing health check..."
 sleep 10
 
-if curl -f http://localhost/health &>/dev/null; then
+if curl -f "http://$SERVER_IP/health" &>/dev/null; then
     success "Rollback completed successfully!"
-    success "Application is healthy at http://207.180.197.168"
+    success "Application is healthy at http://$SERVER_IP"
 else
     error_exit "Rollback failed - application is not healthy"
 fi

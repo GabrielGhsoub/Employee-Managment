@@ -65,8 +65,27 @@ export class EmployeesService implements OnModuleInit {
     const rawUsers = await this.externalApiService.fetchRawEmployees();
     const employees = rawUsers.map((user) => this.employeeMapper.toEntity(user));
 
-    await this.employeeRepository.save(employees);
-    this.logger.info('Database seeded successfully.');
+    // Remove duplicates by email before inserting
+    const uniqueEmployees = employees.filter((employee, index, arr) => 
+      arr.findIndex(e => e.email === employee.email) === index
+    );
+
+    this.logger.info(`Filtered ${employees.length} employees to ${uniqueEmployees.length} unique employees`);
+
+    // Insert employees one by one to handle any remaining conflicts gracefully
+    let insertedCount = 0;
+    for (const employee of uniqueEmployees) {
+      try {
+        await this.employeeRepository.save(employee);
+        insertedCount++;
+      } catch (error) {
+        // Log and skip employees that still cause conflicts
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.logger.warn(`Failed to insert employee ${employee.email}: ${errorMessage}`);
+      }
+    }
+
+    this.logger.info(`Database seeded successfully with ${insertedCount} employees.`);
   }
 
   async create(createEmployeeDto: CreateEmployeeDto): Promise<Employee> {

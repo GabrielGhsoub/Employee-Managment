@@ -72,28 +72,48 @@ if ! command -v pnpm &> /dev/null; then
     success "pnpm installed"
 fi
 
-# Install ALL dependencies for build step
-log "Installing all dependencies for build..."
-pnpm install --frozen-lockfile
-success "All dependencies installed"
+# Check for build artifacts and build if needed
+build_needed=false
 
-# Build applications (skip if already built by CI/CD)
-if [ -d "packages/backend" ] && [ ! -d "packages/backend/dist" ]; then
-    log "Building backend..."
-    pnpm --filter backend build
-    success "Backend built"
-elif [ -d "packages/backend/dist" ]; then
-    log "Backend build artifacts found, skipping build step"
-    success "Backend build skipped (artifacts present)"
+if [ -d "packages/backend" ]; then
+    if [ -d "packages/backend/dist" ] && [ "$(ls -A packages/backend/dist 2>/dev/null)" ]; then
+        log "Backend build artifacts found, skipping build step"
+        success "Backend build skipped (artifacts present)"
+    else
+        log "Backend needs building"
+        build_needed=true
+    fi
 fi
 
-if [ -d "packages/frontend" ] && [ ! -d "packages/frontend/dist" ]; then
-    log "Building frontend..."
-    pnpm --filter frontend build
-    success "Frontend built"
-elif [ -d "packages/frontend/dist" ]; then
-    log "Frontend build artifacts found, skipping build step"
-    success "Frontend build skipped (artifacts present)"
+if [ -d "packages/frontend" ]; then
+    if [ -d "packages/frontend/dist" ] && [ "$(ls -A packages/frontend/dist 2>/dev/null)" ]; then
+        log "Frontend build artifacts found, skipping build step"
+        success "Frontend build skipped (artifacts present)"
+    else
+        log "Frontend needs building"
+        build_needed=true
+    fi
+fi
+
+# If building is needed, install all dependencies first
+if [ "$build_needed" = true ]; then
+    log "Installing all dependencies (including dev) for building..."
+    pnpm install --frozen-lockfile
+    success "All dependencies installed for building"
+    
+    if [ -d "packages/backend" ] && [ ! -d "packages/backend/dist" ]; then
+        log "Building backend..."
+        pnpm --filter backend build
+        success "Backend built"
+    fi
+    
+    if [ -d "packages/frontend" ] && [ ! -d "packages/frontend/dist" ]; then
+        log "Building frontend..."
+        pnpm --filter frontend build
+        success "Frontend built"
+    fi
+else
+    log "All build artifacts present, skipping build process"
 fi
 
 # Install only production dependencies for the final artifact

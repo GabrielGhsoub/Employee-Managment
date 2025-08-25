@@ -195,22 +195,22 @@ jobs:
       - name: Deploy to server
         run: |
           # Create deployment directory
-          ssh root@${{ env.SERVER_IP }} "mkdir -p /opt/employee-management"
+          ssh root@${{ env.SERVER_IP }} "mkdir -p /opt/employee-management/current"
           
           # Copy source code and built artifacts
           rsync -avz --delete \
             --exclude node_modules \
             --exclude .git \
             --exclude .env \
-            . root@${{ env.SERVER_IP }}:/opt/employee-management/
+            . root@${{ env.SERVER_IP }}:/opt/employee-management/current/
           
           # Run deployment script
-          ssh root@${{ env.SERVER_IP }} "cd /opt/employee-management && SERVER_IP=${{ env.SERVER_IP }} ./scripts/deploy.sh"
+          ssh root@${{ env.SERVER_IP }} "cd /opt/employee-management/current && SERVER_IP=${{ env.SERVER_IP }} ./scripts/deploy.sh"
 
       - name: Health check
         run: |
           sleep 30
-          curl -f http://${{ env.SERVER_IP }}:3000/health || exit 1
+          curl -f http://${{ env.SERVER_IP }}/health || exit 1
           curl -f http://${{ env.SERVER_IP }} || exit 1
 
   notify:

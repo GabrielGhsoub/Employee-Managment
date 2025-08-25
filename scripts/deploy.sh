@@ -48,14 +48,15 @@ mkdir -p "$BACKUP_DIR"
 if [ -d "$APP_DIR/current" ]; then
     log "Creating backup of current deployment..."
     BACKUP_NAME="backup-$(date +%Y%m%d-%H%M%S)"
-    cp -r "$APP_DIR/current" "$BACKUP_DIR/$BACKUP_NAME"
+    rsync -a --delete "$APP_DIR/current/" "$BACKUP_DIR/$BACKUP_NAME/"
     success "Backup created: $BACKUP_DIR/$BACKUP_NAME"
 fi
 
-# Create application directory structure
-mkdir -p "$APP_DIR"/{current,releases,logs}
+# Ensure the 'current' directory exists
+mkdir -p "$APP_DIR/current"
 
-cd "$APP_DIR"
+# Change to the correct directory for deployment
+cd "$APP_DIR/current"
 
 # Install Node.js if not present
 if ! command -v node &> /dev/null; then
@@ -97,20 +98,23 @@ if ! command -v pm2 &> /dev/null; then
     success "PM2 installed"
 fi
 
-# Stop existing processes
+# Stop and delete old processes to ensure a clean start
 log "Stopping existing processes..."
 pm2 stop employee-backend 2>/dev/null || true
 pm2 stop employee-frontend 2>/dev/null || true
+pm2 delete employee-backend 2>/dev/null || true
+pm2 delete employee-frontend 2>/dev/null || true
+
 
 # Health check function
 health_check() {
     local service=$1
-    local port=$2
+    local url=$2
     local max_attempts=30
     local attempt=1
 
     while [ $attempt -le $max_attempts ]; do
-        if curl -f "http://$SERVER_IP:$port" &>/dev/null; then
+        if curl -f "$url" &>/dev/null; then
             success "$service health check passed"
             return 0
         fi
@@ -127,33 +131,29 @@ if [ -d "packages/backend/dist" ]; then
     log "Starting backend service..."
     cd packages/backend
     
-    # Copy environment file if it doesn't exist
     if [ ! -f ".env" ]; then
         cp .env.production .env 2>/dev/null || warning "No production environment file found"
     fi
     
     pm2 start dist/main.js --name employee-backend --restart-delay=3000
-    cd "$APP_DIR"
+    cd "$APP_DIR/current"
     
-    # Health check for backend
-    health_check "Backend" 3000
+    health_check "Backend" "http://127.0.0.1:3000/health"
 fi
 
 # Start frontend with serve if built
 if [ -d "packages/frontend/dist" ]; then
     log "Starting frontend service..."
     
-    # Install serve if not present
     if ! command -v serve &> /dev/null; then
         npm install -g serve
     fi
     
     cd packages/frontend
-    pm2 start serve --name employee-frontend -- -s dist -l 80
-    cd "$APP_DIR"
+    pm2 start serve --name employee-frontend -- -s dist -l 8080
+    cd "$APP_DIR/current"
     
-    # Health check for frontend
-    health_check "Frontend" 80
+    health_check "Frontend" "http://127.0.0.1:8080"
 fi
 
 # Save PM2 configuration
@@ -174,14 +174,15 @@ cat > /etc/logrotate.d/employee-management << EOF
 }
 EOF
 
-# Setup nginx if not present
+# Setup nginx
 if ! command -v nginx &> /dev/null; then
     log "Installing nginx..."
     apt-get update
     apt-get install -y nginx
-    
-    # Configure nginx
-    cat > /etc/nginx/sites-available/employee-management << EOF
+fi
+
+log "Configuring Nginx..."
+cat > /etc/nginx/sites-available/employee-management << EOF
 server {
     listen 80;
     server_name $SERVER_IP;
@@ -193,57 +194,52 @@ server {
     
     # Frontend
     location / {
-        proxy_pass http://localhost:80;
+        proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
     
     # Backend API
     location /api {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
     
     # Health check endpoint
     location /health {
-        proxy_pass http://localhost:3000/health;
+        proxy_pass http://127.0.0.1:3000/health;
         access_log off;
     }
 }
 EOF
 
-    # Enable site
+if [ ! -L /etc/nginx/sites-enabled/employee-management ]; then
     ln -sf /etc/nginx/sites-available/employee-management /etc/nginx/sites-enabled/
-    rm -f /etc/nginx/sites-enabled/default
-    
-    # Test nginx configuration
-    nginx -t || error_exit "Nginx configuration test failed"
-    
-    # Start nginx
-    systemctl enable nginx
-    systemctl restart nginx
-    
-    success "Nginx configured and started"
 fi
+rm -f /etc/nginx/sites-enabled/default
+
+nginx -t || error_exit "Nginx configuration test failed"
+systemctl enable nginx
+systemctl restart nginx
+success "Nginx configured and (re)started"
 
 # Final health check
 log "Performing final health checks..."
 sleep 5
 
-# Check if services are running
 if ! pm2 list | grep -q "employee-backend.*online"; then
     warning "Backend service is not running"
 fi
@@ -252,12 +248,10 @@ if ! pm2 list | grep -q "employee-frontend.*online"; then
     warning "Frontend service is not running"
 fi
 
-# Check nginx
 if ! systemctl is-active --quiet nginx; then
     warning "Nginx is not running"
 fi
 
-# Final application health check
 if curl -f "http://$SERVER_IP/health" &>/dev/null; then
     success "Application is healthy and accessible"
 else
@@ -267,7 +261,5 @@ fi
 log "Deployment completed successfully!"
 success "Application deployed to http://$SERVER_IP"
 
-# Display running services
 log "Current running services:"
 pm2 list
-systemctl status nginx --no-pager -l

@@ -73,7 +73,8 @@ if ! command -v pnpm &> /dev/null; then
 fi
 
 # Check for build artifacts and build if needed
-build_needed=false
+backend_needs_build=false
+frontend_needs_build=false
 
 if [ -d "packages/backend" ]; then
     if [ -d "packages/backend/dist" ] && [ "$(ls -A packages/backend/dist 2>/dev/null)" ]; then
@@ -81,7 +82,7 @@ if [ -d "packages/backend" ]; then
         success "Backend build skipped (artifacts present)"
     else
         log "Backend needs building"
-        build_needed=true
+        backend_needs_build=true
     fi
 fi
 
@@ -91,36 +92,53 @@ if [ -d "packages/frontend" ]; then
         success "Frontend build skipped (artifacts present)"
     else
         log "Frontend needs building"
-        build_needed=true
+        frontend_needs_build=true
     fi
 fi
 
-# If building is needed, install all dependencies first
-if [ "$build_needed" = true ]; then
+# If building is needed, install ALL dependencies (including dev) first
+if [ "$backend_needs_build" = true ] || [ "$frontend_needs_build" = true ]; then
     log "Installing all dependencies (including dev) for building..."
+    # Install ALL dependencies, not just production
     pnpm install --frozen-lockfile
     success "All dependencies installed for building"
     
-    if [ -d "packages/backend" ] && [ ! -d "packages/backend/dist" ]; then
+    if [ "$backend_needs_build" = true ]; then
         log "Building backend..."
-        pnpm --filter backend build
+        # Verify nest CLI is available
+        if [ -f "packages/backend/node_modules/.bin/nest" ]; then
+            log "NestJS CLI found in local node_modules"
+        else
+            log "Installing NestJS CLI globally as fallback..."
+            npm install -g @nestjs/cli
+        fi
+        
+        cd packages/backend
+        # Try to use local nest first, fallback to global
+        if [ -f "node_modules/.bin/nest" ]; then
+            ./node_modules/.bin/nest build
+        else
+            nest build
+        fi
+        cd "$APP_DIR/current"
         success "Backend built"
     fi
     
-    if [ -d "packages/frontend" ] && [ ! -d "packages/frontend/dist" ]; then
+    if [ "$frontend_needs_build" = true ]; then
         log "Building frontend..."
         pnpm --filter frontend build
         success "Frontend built"
     fi
+    
+    # After building, remove dev dependencies to save space
+    log "Removing development dependencies..."
+    pnpm prune --prod
+    success "Development dependencies removed"
 else
-    log "All build artifacts present, skipping build process"
+    log "All build artifacts present, installing production dependencies only..."
+    pnpm install --prod --frozen-lockfile
+    success "Production dependencies installed"
 fi
-
-# Install only production dependencies for the final artifact
-log "Installing production dependencies..."
-pnpm install --prod --frozen-lockfile
-success "Production dependencies installed"
-
 
 # Install PM2 if not present
 if ! command -v pm2 &> /dev/null; then
@@ -129,13 +147,19 @@ if ! command -v pm2 &> /dev/null; then
     success "PM2 installed"
 fi
 
+# Install serve if not present (for frontend)
+if ! command -v serve &> /dev/null; then
+    log "Installing serve..."
+    npm install -g serve
+    success "serve installed"
+fi
+
 # Stop and delete old processes to ensure a clean start
 log "Stopping existing processes..."
 pm2 stop employee-backend 2>/dev/null || true
 pm2 stop employee-frontend 2>/dev/null || true
 pm2 delete employee-backend 2>/dev/null || true
 pm2 delete employee-frontend 2>/dev/null || true
-
 
 # Health check function
 health_check() {
@@ -162,40 +186,60 @@ if [ -d "packages/backend/dist" ]; then
     log "Starting backend service..."
     cd packages/backend
     
+    # Setup environment file
     if [ ! -f ".env" ]; then
-        cp .env.production .env 2>/dev/null || warning "No production environment file found"
+        if [ -f ".env.production" ]; then
+            cp .env.production .env
+            log "Using .env.production for backend configuration"
+        else
+            warning "No production environment file found"
+        fi
     fi
     
-    pm2 start dist/main.js --name employee-backend --restart-delay=3000
+    # Start with PM2
+    pm2 start dist/main.js \
+        --name employee-backend \
+        --restart-delay=3000 \
+        --max-memory-restart 500M \
+        --log /var/log/employee-management/backend.log \
+        --error /var/log/employee-management/backend-error.log
+    
     cd "$APP_DIR/current"
+    
+    # Wait a bit for the service to start
+    sleep 5
     
     health_check "Backend" "http://127.0.0.1:3000/api/health"
 fi
 
-# Start frontend with serve if built
+# Start frontend if built
 if [ -d "packages/frontend/dist" ]; then
     log "Starting frontend service..."
     
-    if ! command -v serve &> /dev/null; then
-        npm install -g serve
-    fi
-    
     cd packages/frontend
-    pm2 start serve --name employee-frontend -- -s dist -l 8080
+    pm2 start serve \
+        --name employee-frontend \
+        -- -s dist -l 8080 \
+        --max-memory-restart 200M \
+        --log /var/log/employee-management/frontend.log \
+        --error /var/log/employee-management/frontend-error.log
+    
     cd "$APP_DIR/current"
+    
+    # Wait a bit for the service to start
+    sleep 5
     
     health_check "Frontend" "http://127.0.0.1:8080"
 fi
 
-
 # Save PM2 configuration
 pm2 save
-pm2 startup
+pm2 startup systemd -u root --hp /root || true
 
 # Setup log rotation
 log "Setting up log rotation..."
 cat > /etc/logrotate.d/employee-management << EOF
-/var/log/employee-management-deploy.log {
+/var/log/employee-management/*.log {
     daily
     missingok
     rotate 7
@@ -203,10 +247,13 @@ cat > /etc/logrotate.d/employee-management << EOF
     delaycompress
     notifempty
     create 644 root root
+    postrotate
+        pm2 reloadLogs >/dev/null 2>&1 || true
+    endscript
 }
 EOF
 
-# Setup nginx
+# Setup nginx if not already configured
 if ! command -v nginx &> /dev/null; then
     log "Installing nginx..."
     apt-get update
@@ -235,6 +282,11 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        # Timeout settings
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
     }
     
     # Backend API
@@ -248,6 +300,11 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        # Timeout settings
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
     }
     
     # Health check endpoint
@@ -258,12 +315,18 @@ server {
 }
 EOF
 
+# Enable the site if not already enabled
 if [ ! -L /etc/nginx/sites-enabled/employee-management ]; then
     ln -sf /etc/nginx/sites-available/employee-management /etc/nginx/sites-enabled/
 fi
+
+# Remove default site if it exists
 rm -f /etc/nginx/sites-enabled/default
 
+# Test nginx configuration
 nginx -t || error_exit "Nginx configuration test failed"
+
+# Enable and restart nginx
 systemctl enable nginx
 systemctl restart nginx
 success "Nginx configured and (re)started"
@@ -272,27 +335,47 @@ success "Nginx configured and (re)started"
 log "Performing final health checks..."
 sleep 5
 
+# Check PM2 services
 if ! pm2 list | grep -q "employee-backend.*online"; then
     warning "Backend service is not running"
+    pm2 logs employee-backend --lines 20 --nostream
 fi
 
 if ! pm2 list | grep -q "employee-frontend.*online"; then
     warning "Frontend service is not running"
+    pm2 logs employee-frontend --lines 20 --nostream
 fi
 
+# Check nginx
 if ! systemctl is-active --quiet nginx; then
     warning "Nginx is not running"
+    systemctl status nginx
 fi
 
-# Use the public IP for the final check through Nginx
+# Final application health check through Nginx
 if curl -f --silent --output /dev/null "http://$SERVER_IP/api/health"; then
     success "Application is healthy and accessible"
 else
-    warning "Application health check failed - manual intervention may be required"
+    warning "Application health check failed - checking individual services..."
+    
+    # Debug individual services
+    echo "Backend direct check:"
+    curl -I http://127.0.0.1:3000/api/health || true
+    
+    echo "Frontend direct check:"
+    curl -I http://127.0.0.1:8080 || true
+    
+    echo "PM2 status:"
+    pm2 list
 fi
 
-log "Deployment completed successfully!"
-success "Application deployed to http://$SERVER_IP"
+log "Deployment completed!"
+success "Application should be accessible at http://$SERVER_IP"
 
-log "Current running services:"
+# Show current status
+echo ""
+echo "=== Current Service Status ==="
 pm2 list
+echo ""
+echo "=== Recent Logs ==="
+pm2 logs --lines 10 --nostream

@@ -2,7 +2,6 @@ packages:
   - packages/*
 
 ignoredBuiltDependencies:
-  - '@nestjs/core'
   - '@scarf/scarf'
   - nestjs-pino
   - unrs-resolver

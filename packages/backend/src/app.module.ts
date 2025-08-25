@@ -29,7 +29,7 @@ import { Employee } from './employees/entities/employee.entity';
         type: 'better-sqlite3', 
         database: 'employee-directory.sqlite',
         entities: [Employee],
-        synchronize: configService.get<string>('NODE_ENV') !== 'production',
+        synchronize: true,
       }),
     }),
 

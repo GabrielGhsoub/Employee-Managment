@@ -3,7 +3,7 @@
 import {
   Injectable,
   NotFoundException,
-  OnModuleInit,
+  OnApplicationBootstrap,
   ConflictException,
   Inject,
 } from '@nestjs/common';
@@ -22,7 +22,7 @@ import { Cache } from 'cache-manager';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class EmployeesService implements OnModuleInit {
+export class EmployeesService implements OnApplicationBootstrap {
   constructor(
     @InjectRepository(Employee)
     private readonly employeeRepository: Repository<Employee>,
@@ -34,7 +34,7 @@ export class EmployeesService implements OnModuleInit {
     private readonly configService: ConfigService,
   ) {}
 
-  async onModuleInit() {
+  async onApplicationBootstrap() {
     if (this.configService.get('NODE_ENV') !== 'test') {
       await this.seedDatabase();
     }

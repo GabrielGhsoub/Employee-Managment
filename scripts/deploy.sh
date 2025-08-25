@@ -143,7 +143,7 @@ if [ -d "packages/backend/dist" ]; then
     pm2 start dist/main.js --name employee-backend --restart-delay=3000
     cd "$APP_DIR/current"
     
-    health_check "Backend" "http://127.0.0.1:3000/health"
+    health_check "Backend" "http://127.0.0.1:3000/api/health"
 fi
 
 # Start frontend with serve if built
@@ -225,8 +225,8 @@ server {
     }
     
     # Health check endpoint
-    location /health {
-        proxy_pass http://127.0.0.1:3000/health;
+    location /api/health {
+        proxy_pass http://127.0.0.1:3000/api/health;
         access_log off;
     }
 }
@@ -259,7 +259,7 @@ if ! systemctl is-active --quiet nginx; then
 fi
 
 # Use the public IP for the final check through Nginx
-if curl -f --silent --output /dev/null "http://$SERVER_IP/health"; then
+if curl -f --silent --output /dev/null "http://$SERVER_IP/api/health"; then
     success "Application is healthy and accessible"
 else
     warning "Application health check failed - manual intervention may be required"

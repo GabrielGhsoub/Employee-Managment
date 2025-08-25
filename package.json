@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "concurrently \"pnpm --filter backend start:dev\" \"pnpm --filter frontend dev\"",
@@ -24,9 +25,10 @@
     "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^15.8.0",
     "prettier": "^3.6.2",
     "sqlite3": "^5.1.7",
     "typescript": "^5.9.2",
-    "typescript-eslint": "^8.39.1"
+    "typescript-eslint": "^8.40.0"
   }
 }

@@ -10,6 +10,9 @@ env:
   NODE_VERSION: '20'
   PNPM_VERSION: '10.15.0'
   SERVER_IP: 'YOUR_SERVER_IP'
+  # Set these in repository secrets for custom domain:
+  # DOMAIN: your-domain.com
+  # USE_HTTPS: true
 
 jobs:
   detect-changes:
@@ -154,7 +157,7 @@ jobs:
     
     environment:
       name: production
-      url: http://${{ env.SERVER_IP }}
+      url: ${{ secrets.USE_HTTPS == 'true' && 'https' || 'http' }}://${{ secrets.DOMAIN || env.SERVER_IP }}
 
     steps:
       - uses: actions/checkout@v4
@@ -203,13 +206,18 @@ jobs:
             . root@${{ env.SERVER_IP }}:/opt/employee-management/current/
           
           # Run deployment script
-          ssh root@${{ env.SERVER_IP }} "cd /opt/employee-management/current && chmod +x scripts/*.sh && SERVER_IP=${{ env.SERVER_IP }} ./scripts/deploy.sh"
+          ssh root@${{ env.SERVER_IP }} "cd /opt/employee-management/current && chmod +x scripts/*.sh && SERVER_IP=${{ env.SERVER_IP }} DOMAIN=${{ secrets.DOMAIN || env.SERVER_IP }} USE_HTTPS=${{ secrets.USE_HTTPS || 'false' }} ./scripts/deploy.sh"
 
       - name: Health check
         run: |
           sleep 30
-          curl -f http://${{ env.SERVER_IP }}/api/health || exit 1
-          curl -f http://${{ env.SERVER_IP }} || exit 1
+          DOMAIN="${{ secrets.DOMAIN || env.SERVER_IP }}"
+          PROTOCOL="http"
+          if [ "${{ secrets.USE_HTTPS }}" = "true" ]; then
+            PROTOCOL="https"
+          fi
+          curl -f "${PROTOCOL}://${DOMAIN}/api/health" || exit 1
+          curl -f "${PROTOCOL}://${DOMAIN}" || exit 1
 
   notify:
     runs-on: ubuntu-latest

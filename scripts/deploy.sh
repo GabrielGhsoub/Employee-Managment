@@ -13,6 +13,8 @@ APP_DIR="/opt/employee-management"
 BACKUP_DIR="/opt/backups/employee-management"
 LOG_FILE="/var/log/employee-management-deploy.log"
 SERVER_IP="${SERVER_IP:-127.0.0.1}"
+DOMAIN="${DOMAIN:-$SERVER_IP}"
+USE_HTTPS="${USE_HTTPS:-false}"
 
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
@@ -258,7 +260,7 @@ log "Configuring Nginx..."
 cat > /etc/nginx/sites-available/employee-management << EOF
 server {
     listen 80;
-    server_name $SERVER_IP;
+    server_name $DOMAIN;
     
     # Security headers
     add_header X-Frame-Options SAMEORIGIN;
@@ -347,7 +349,12 @@ if ! systemctl is-active --quiet nginx; then
 fi
 
 # Final application health check through Nginx
-if curl -f --silent --output /dev/null "http://$SERVER_IP/api/health"; then
+HEALTH_URL="http://$DOMAIN/api/health"
+if [ "$USE_HTTPS" = "true" ]; then
+    HEALTH_URL="https://$DOMAIN/api/health"
+fi
+
+if curl -f --silent --output /dev/null "$HEALTH_URL"; then
     success "Application is healthy and accessible"
 else
     warning "Application health check failed - checking individual services..."
@@ -364,7 +371,11 @@ else
 fi
 
 log "Deployment completed!"
-success "Application should be accessible at http://$SERVER_IP"
+APP_URL="http://$DOMAIN"
+if [ "$USE_HTTPS" = "true" ]; then
+    APP_URL="https://$DOMAIN"
+fi
+success "Application should be accessible at $APP_URL"
 
 # Show current status
 echo ""

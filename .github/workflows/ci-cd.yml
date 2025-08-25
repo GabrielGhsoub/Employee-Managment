@@ -73,7 +73,9 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: |
+          pnpm install --frozen-lockfile --prefer-offline
+          pnpm approve-builds
         env:
           NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
           PNPM_CONFIG_REGISTRY: https://registry.npmjs.org/
@@ -126,7 +128,9 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: |
+          pnpm install --frozen-lockfile --prefer-offline
+          pnpm approve-builds
         env:
           NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
           PNPM_CONFIG_REGISTRY: https://registry.npmjs.org/

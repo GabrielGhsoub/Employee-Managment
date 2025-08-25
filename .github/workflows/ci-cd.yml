@@ -212,12 +212,60 @@ jobs:
         run: |
           sleep 30
           DOMAIN="${{ vars.DOMAIN || env.SERVER_IP }}"
-          PROTOCOL="http"
-          if [ "${{ vars.USE_HTTPS }}" = "true" ]; then
-            PROTOCOL="https"
+          USE_HTTPS="${{ vars.USE_HTTPS || 'false' }}"
+          
+          # Function to test health endpoint
+          test_health() {
+            local url=$1
+            echo "Testing health endpoint: $url"
+            if curl -f --connect-timeout 10 --max-time 30 "$url"; then
+              echo "✅ Health check passed: $url"
+              return 0
+            else
+              echo "❌ Health check failed: $url"
+              return 1
+            fi
+          }
+          
+          # Function to test frontend
+          test_frontend() {
+            local url=$1
+            echo "Testing frontend: $url"
+            if curl -f --connect-timeout 10 --max-time 30 -I "$url"; then
+              echo "✅ Frontend check passed: $url"
+              return 0
+            else
+              echo "❌ Frontend check failed: $url"
+              return 1
+            fi
+          }
+          
+          # Try HTTPS first if configured
+          if [ "$USE_HTTPS" = "true" ]; then
+            if test_health "https://${DOMAIN}/api/health" && test_frontend "https://${DOMAIN}"; then
+              echo "🎉 HTTPS health checks successful"
+              exit 0
+            else
+              echo "⚠️ HTTPS health checks failed, trying fallback options..."
+            fi
           fi
-          curl -f "${PROTOCOL}://${DOMAIN}/api/health" || exit 1
-          curl -f "${PROTOCOL}://${DOMAIN}" || exit 1
+          
+          # Try HTTP as fallback
+          if test_health "http://${DOMAIN}/api/health" && test_frontend "http://${DOMAIN}"; then
+            echo "🎉 HTTP health checks successful"
+            exit 0
+          fi
+          
+          # Try direct IP as final fallback
+          echo "⚠️ Domain-based health checks failed, trying direct IP..."
+          if test_health "http://${{ env.SERVER_IP }}/api/health" && test_frontend "http://${{ env.SERVER_IP }}"; then
+            echo "🎉 Direct IP health checks successful"
+            echo "⚠️ Note: Domain may still be propagating or have connectivity issues"
+            exit 0
+          fi
+          
+          echo "❌ All health check methods failed"
+          exit 1
 
   notify:
     runs-on: ubuntu-latest

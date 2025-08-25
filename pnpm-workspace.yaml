@@ -2,7 +2,6 @@ packages:
   - packages/*
 
 ignoredBuiltDependencies:
-  - '@nestjs/core'
   - '@scarf/scarf'
   - nestjs-pino
   - unrs-resolver
@@ -11,4 +10,5 @@ onlyBuiltDependencies:
   - '@swc/core'
   - better-sqlite3
   - esbuild
+  - msw
   - sqlite3

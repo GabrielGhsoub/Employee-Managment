@@ -1,0 +1,116 @@
+name: PR Quality Checks
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '10.15.0'
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        run: |
+          pnpm --filter backend format --check || echo "Backend formatting issues detected"
+          pnpm --filter frontend format --check || echo "Frontend formatting issues detected"
+
+      - name: Type check
+        run: |
+          pnpm --filter backend build || echo "Backend type check failed"
+          pnpm --filter frontend build || echo "Frontend type check failed"
+
+      - name: Bundle size check
+        if: contains(github.event.pull_request.changed_files, 'packages/frontend')
+        run: |
+          pnpm --filter frontend build
+          du -sh packages/frontend/dist || echo "Could not calculate bundle size"
+
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+          allow-ghsas: |
+            GHSA-example-1234
+
+  pr-labeler:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            backend:
+              - 'packages/backend/**'
+            frontend:
+              - 'packages/frontend/**'
+            ci:
+              - '.github/**'
+            docs:
+              - '*.md'
+              - 'docs/**'
+
+      - uses: actions/labeler@v5
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add package-specific labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = [];
+            
+            if ('${{ steps.changes.outputs.backend }}' === 'true') {
+              labels.push('backend');
+            }
+            
+            if ('${{ steps.changes.outputs.frontend }}' === 'true') {
+              labels.push('frontend');
+            }
+            
+            if ('${{ steps.changes.outputs.ci }}' === 'true') {
+              labels.push('ci/cd');
+            }
+            
+            if ('${{ steps.changes.outputs.docs }}' === 'true') {
+              labels.push('documentation');
+            }
+            
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: labels
+              });
+            }

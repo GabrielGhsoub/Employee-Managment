@@ -24,7 +24,6 @@ type MockCacheManager = {
 describe('EmployeesService', () => {
   let service: EmployeesService;
   let repository: Repository<Employee>;
-  let externalApiService: ExternalApiService;
   let cacheManager: MockCacheManager;
 
   const mockEmployee: Employee = {
@@ -42,7 +41,7 @@ describe('EmployeesService', () => {
   };
 
   const mockRepository = {
-    create: jest.fn().mockImplementation((dto) => dto),
+    create: jest.fn().mockImplementation((dto: CreateEmployeeDto) => dto),
     save: jest.fn().mockResolvedValue(mockEmployee),
     find: jest.fn().mockResolvedValue([mockEmployee]),
     findOneBy: jest.fn().mockResolvedValue(mockEmployee),
@@ -99,7 +98,6 @@ describe('EmployeesService', () => {
 
     service = module.get<EmployeesService>(EmployeesService);
     repository = module.get<Repository<Employee>>(getRepositoryToken(Employee));
-    externalApiService = module.get<ExternalApiService>(ExternalApiService);
     cacheManager = module.get<MockCacheManager>(CACHE_MANAGER as any);
 
     jest.clearAllMocks();
@@ -113,6 +111,7 @@ describe('EmployeesService', () => {
   describe('create', () => {
     it('should create an employee and invalidate the cache', async () => {
       mockRepository.findOneBy.mockResolvedValue(null);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, createdAt, updatedAt, ...createDtoData } = mockEmployee;
       const createDto: CreateEmployeeDto = createDtoData;
       mockRepository.create.mockImplementation((emp) => emp);

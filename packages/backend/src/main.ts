@@ -14,6 +14,9 @@ async function bootstrap() {
   const httpAdapterHost = app.get(HttpAdapterHost);
   app.useGlobalFilters(new AllExceptionsFilter(httpAdapterHost));
 
+  // Set global prefix for all routes
+  app.setGlobalPrefix('api');
+
   const config = new DocumentBuilder()
     .setTitle('Employee Directory API')
     .setDescription(

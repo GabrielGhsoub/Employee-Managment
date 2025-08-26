@@ -181,6 +181,13 @@ if [ -d "packages/backend/dist" ]; then
     log "Starting backend service..."
     cd packages/backend
     
+    # Ensure backend package.json has correct module type
+    if grep -q '"type": "module"' package.json; then
+        log "Fixing backend package.json module type..."
+        sed -i 's/"type": "module"/"type": "commonjs"/g' package.json
+        success "Backend package.json module type fixed"
+    fi
+    
     # Setup environment file
     if [ ! -f ".env" ]; then
         if [ -f ".env.production" ]; then

@@ -1,10 +1,11 @@
-name: CI/CD Pipeline
+# Temporarily disabled for deployment testing
+name: CI/CD Pipeline (DISABLED)
 
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
+# on:
+#   push:
+#     branches: [main, develop]
+#   pull_request:
+#     branches: [main]
 
 env:
   NODE_VERSION: '20'

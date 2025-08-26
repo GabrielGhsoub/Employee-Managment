@@ -206,8 +206,15 @@ if [ -d "packages/backend/dist" ]; then
         fi
     fi
     
-    # Start with PM2
-    pm2 start dist/main.js \
+    # Rename main.js to main.cjs to ensure CommonJS execution
+    if [ -f "dist/main.js" ] && [ ! -f "dist/main.cjs" ]; then
+        log "Renaming main.js to main.cjs for CommonJS compatibility..."
+        mv dist/main.js dist/main.cjs
+        success "Backend main file renamed to .cjs"
+    fi
+    
+    # Start with PM2 using .cjs file
+    pm2 start dist/main.cjs \
         --name employee-backend \
         --restart-delay=3000 \
         --max-memory-restart 500M \

@@ -33,7 +33,7 @@ const SearchField = memo(({
       variant="outlined"
       placeholder={placeholder}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => onChange(e?.target?.value || '')}
       InputProps={{
         startAdornment: (
           <InputAdornment position="start">

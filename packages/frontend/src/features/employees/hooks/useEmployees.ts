@@ -56,8 +56,8 @@ export const useEmployeeFilterOptions = (employees: Employee[] = []) => {
   const allEmployees = allEmployeesData?.data || employees;
 
   return {
-    departments: [...new Set(allEmployees.map(e => e.department))].sort(),
-    locations: [...new Set(allEmployees.map(e => e.location))].sort(),
-    titles: [...new Set(allEmployees.map(e => e.jobTitle))].sort()
+    departments: [...new Set(allEmployees.filter(e => e?.department).map(e => e.department))].sort(),
+    locations: [...new Set(allEmployees.filter(e => e?.location).map(e => e.location))].sort(),
+    titles: [...new Set(allEmployees.filter(e => e?.jobTitle).map(e => e.jobTitle))].sort()
   };
 };

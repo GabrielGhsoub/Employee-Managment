@@ -52,12 +52,12 @@ const EmployeeCard = memo(({ employee, onEdit, onDelete }: EmployeeCardProps) =>
   }, [theme.palette]);
 
   const handleEdit = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
+    e?.stopPropagation();
     onEdit(employee);
   }, [employee, onEdit]);
 
   const handleDelete = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
+    e?.stopPropagation();
     onDelete(employee);
   }, [employee, onDelete]);
 

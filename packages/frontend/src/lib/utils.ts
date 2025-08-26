@@ -72,3 +72,79 @@ export const get = (obj: Record<string, unknown>, path: string, defaultValue: un
   
   return result !== undefined ? result : defaultValue;
 };
+
+/**
+ * Safely get event target value with comprehensive null/undefined checks
+ */
+export const safeGetEventValue = (event: unknown): string => {
+  try {
+    if (!event || typeof event !== 'object') return '';
+    const e = event as { target?: { value?: unknown; type?: string } };
+    if (!e.target || typeof e.target !== 'object') return '';
+    const value = e.target.value;
+    if (value == null) return '';
+    return typeof value === 'string' ? value : String(value);
+  } catch {
+    return '';
+  }
+};
+
+/**
+ * Safely handle any data that might be null/undefined/malformed
+ */
+export const safeGet = <T>(data: unknown, defaultValue: T): T => {
+  try {
+    if (data == null || data === undefined) return defaultValue;
+    return data as T;
+  } catch {
+    return defaultValue;
+  }
+};
+
+/**
+ * Safely handle employee data to prevent undefined access
+ */
+export const safeEmployee = (employee: unknown): {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  pictureUrl?: string;
+  jobTitle: string;
+  department: string;
+  location: string;
+  createdAt: string;
+  updatedAt: string;
+} => {
+  if (!employee || typeof employee !== 'object') {
+    return {
+      id: '',
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      pictureUrl: '',
+      jobTitle: '',
+      department: '',
+      location: '',
+      createdAt: '',
+      updatedAt: ''
+    };
+  }
+
+  const e = employee as Record<string, unknown>;
+  return {
+    id: safeGet(e.id, ''),
+    firstName: safeGet(e.firstName, ''),
+    lastName: safeGet(e.lastName, ''),
+    email: safeGet(e.email, ''),
+    phone: safeGet(e.phone, ''),
+    pictureUrl: safeGet(e.pictureUrl, ''),
+    jobTitle: safeGet(e.jobTitle, ''),
+    department: safeGet(e.department, ''),
+    location: safeGet(e.location, ''),
+    createdAt: safeGet(e.createdAt, ''),
+    updatedAt: safeGet(e.updatedAt, '')
+  };
+};

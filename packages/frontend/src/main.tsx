@@ -8,6 +8,26 @@ import { SnackbarProvider } from 'notistack';
 import App from './App';
 import './index.css';
 
+// Global error handling
+window.addEventListener('error', (event) => {
+  console.error('Global error caught:', {
+    message: event.error?.message || event.message || 'Unknown error',
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno,
+    error: event.error,
+    timestamp: new Date().toISOString()
+  });
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', {
+    reason: event.reason,
+    promise: event.promise,
+    timestamp: new Date().toISOString()
+  });
+});
+
 const queryClient = new QueryClient();
 
 const theme = createTheme({

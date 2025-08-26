@@ -38,8 +38,15 @@ class ErrorBoundary extends Component<Props, State> {
       errorInfo: errorInfo.componentStack || undefined,
     });
 
-    // Log to error reporting service
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Log to error reporting service with more details
+    console.error('ErrorBoundary caught an error:', {
+      error: error,
+      errorInfo: errorInfo,
+      message: error?.message || 'Unknown error',
+      stack: error?.stack || 'No stack trace',
+      componentStack: errorInfo?.componentStack || 'No component stack',
+      timestamp: new Date().toISOString()
+    });
   }
 
   handleReset = () => {

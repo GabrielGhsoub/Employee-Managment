@@ -9,6 +9,7 @@ import {
   Search as SearchIcon,
   Clear as ClearIcon,
 } from '@mui/icons-material';
+import { safeGetEventValue } from '../../lib/utils';
 
 interface SearchFieldProps {
   value: string;
@@ -33,7 +34,7 @@ const SearchField = memo(({
       variant="outlined"
       placeholder={placeholder}
       value={value}
-      onChange={(e) => onChange(e?.target?.value || '')}
+      onChange={(e) => onChange(safeGetEventValue(e))}
       InputProps={{
         startAdornment: (
           <InputAdornment position="start">

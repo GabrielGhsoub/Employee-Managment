@@ -118,8 +118,11 @@ const EmployeeForm = ({ open, onClose, employee, onSuccess }: EmployeeFormProps)
       enqueueSnackbar('Employee created successfully', { variant: 'success' });
       onSuccess?.();
     },
-    onError: (error: Error & { response?: { data?: { message?: string } } }) => {
-      enqueueSnackbar(error.response?.data?.message || 'Failed to create employee', { variant: 'error' });
+    onError: (error: unknown) => {
+      const message = (error as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || 
+                     (error as { message?: string })?.message || 
+                     'Failed to create employee';
+      enqueueSnackbar(message, { variant: 'error' });
     },
   });
 
@@ -130,8 +133,11 @@ const EmployeeForm = ({ open, onClose, employee, onSuccess }: EmployeeFormProps)
       enqueueSnackbar('Employee updated successfully', { variant: 'success' });
       onSuccess?.();
     },
-    onError: (error: Error & { response?: { data?: { message?: string } } }) => {
-      enqueueSnackbar(error.response?.data?.message || 'Failed to update employee', { variant: 'error' });
+    onError: (error: unknown) => {
+      const message = (error as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || 
+                     (error as { message?: string })?.message || 
+                     'Failed to update employee';
+      enqueueSnackbar(message, { variant: 'error' });
     },
   });
 

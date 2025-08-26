@@ -25,6 +25,7 @@ import {
   ViewList as ListViewIcon,
   FilterAlt as FilterAltIcon,
 } from '@mui/icons-material';
+import { safeGetEventValue } from '../../../lib/utils';
 
 interface FilterOptions {
   departments: string[];
@@ -101,7 +102,7 @@ const EmployeeFilters = memo(({
             variant="outlined"
             placeholder="Search by name, email, or any field..."
             value={search}
-            onChange={(e) => onSearchChange(e?.target?.value || '')}
+            onChange={(e) => onSearchChange(safeGetEventValue(e))}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -225,7 +226,7 @@ const EmployeeFilters = memo(({
               <Select
                 value={department}
                 label="Department"
-                onChange={(e: SelectChangeEvent) => onDepartmentChange(e?.target?.value || '')}
+                onChange={(e: SelectChangeEvent) => onDepartmentChange(safeGetEventValue(e))}
               >
                 <MenuItem value="">
                   <em>All Departments</em>
@@ -243,7 +244,7 @@ const EmployeeFilters = memo(({
               <Select
                 value={location}
                 label="Location"
-                onChange={(e: SelectChangeEvent) => onLocationChange(e?.target?.value || '')}
+                onChange={(e: SelectChangeEvent) => onLocationChange(safeGetEventValue(e))}
               >
                 <MenuItem value="">
                   <em>All Locations</em>
@@ -261,7 +262,7 @@ const EmployeeFilters = memo(({
               <Select
                 value={jobTitle}
                 label="Job Title"
-                onChange={(e: SelectChangeEvent) => onJobTitleChange(e?.target?.value || '')}
+                onChange={(e: SelectChangeEvent) => onJobTitleChange(safeGetEventValue(e))}
               >
                 <MenuItem value="">
                   <em>All Job Titles</em>
@@ -279,7 +280,7 @@ const EmployeeFilters = memo(({
               <Select
                 value={sortBy}
                 label="Sort By"
-                onChange={(e: SelectChangeEvent) => onSortByChange(e?.target?.value || '')}
+                onChange={(e: SelectChangeEvent) => onSortByChange(safeGetEventValue(e))}
               >
                 <MenuItem value="firstName">First Name</MenuItem>
                 <MenuItem value="lastName">Last Name</MenuItem>
@@ -295,7 +296,7 @@ const EmployeeFilters = memo(({
               <Select
                 value={sortOrder}
                 label="Order"
-                onChange={(e: SelectChangeEvent) => onSortOrderChange((e?.target?.value || 'ASC') as 'ASC' | 'DESC')}
+                onChange={(e: SelectChangeEvent) => onSortOrderChange((safeGetEventValue(e) || 'ASC') as 'ASC' | 'DESC')}
               >
                 <MenuItem value="ASC">A → Z</MenuItem>
                 <MenuItem value="DESC">Z → A</MenuItem>

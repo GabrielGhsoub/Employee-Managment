@@ -156,6 +156,14 @@ pm2 stop employee-frontend 2>/dev/null || true
 pm2 delete employee-backend 2>/dev/null || true
 pm2 delete employee-frontend 2>/dev/null || true
 
+# Clear PM2 cache and logs to prevent stale configurations
+log "Clearing PM2 cache and logs..."
+pm2 flush 2>/dev/null || warning "Failed to flush PM2 logs"
+# Clear any cached module resolutions
+rm -rf "$APP_DIR/current/node_modules/.cache" 2>/dev/null || true
+rm -rf "$APP_DIR/current/packages/*/node_modules/.cache" 2>/dev/null || true
+success "PM2 cache cleared"
+
 # Health check function
 health_check() {
     local service=$1

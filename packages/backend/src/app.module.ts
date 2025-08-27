@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EmployeesModule } from './employees/employees.module';
+import { LogsModule } from './logs/logs.module';
 import * as Joi from 'joi';
 import { LoggerModule } from 'nestjs-pino';
 import { promises as fs } from 'fs';
@@ -59,34 +60,58 @@ import { HealthController } from './health/health.controller';
         const logDir = 'logs';
         const logFile = path.join(logDir, 'app.log');
 
-        if (isProduction) {
-          try {
-            await fs.mkdir(logDir, { recursive: true });
-          } catch (e) {
-            console.error('Could not create log directory', e);
-          }
+        // Always create log directory for comprehensive logging
+        try {
+          await fs.mkdir(logDir, { recursive: true });
+        } catch (e) {
+          console.error('Could not create log directory', e);
         }
 
         return {
           pinoHttp: {
-            level: isProduction ? 'info' : 'debug',
+            // Always use debug level to capture everything including dev logs
+            level: 'debug',
             transport: isProduction
               ? {
                   target: 'pino/file',
-                  options: { destination: logFile },
+                  options: { 
+                    destination: logFile,
+                  },
                 }
               : {
                   target: 'pino-pretty',
                   options: {
                     singleLine: true,
                     colorize: true,
+                    translateTime: 'SYS:standard',
                   },
                 },
+            // Enhanced serializers for better error logging
+            serializers: {
+              req: (req: any) => ({
+                method: req.method,
+                url: req.url,
+                headers: req.headers,
+                remoteAddress: req.remoteAddress,
+                remotePort: req.remotePort,
+              }),
+              res: (res: any) => ({
+                statusCode: res.statusCode,
+                headers: res.getHeaders?.() || res.headers,
+              }),
+              err: (err: any) => ({
+                type: err.constructor?.name || 'Error',
+                message: err.message,
+                stack: err.stack,
+                ...err,
+              }),
+            },
           },
         };
       },
     }),
     EmployeesModule,
+    LogsModule,
   ],
   controllers: [HealthController],
   providers: [],

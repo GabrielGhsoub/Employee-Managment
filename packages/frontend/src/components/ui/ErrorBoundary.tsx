@@ -7,7 +7,8 @@ import {
   Alert,
   AlertTitle,
 } from '@mui/material';
-import { Refresh as RefreshIcon } from '@mui/icons-material';
+import { Refresh as RefreshIcon, Download as DownloadIcon } from '@mui/icons-material';
+import { logger } from '../../lib/logger';
 
 interface Props {
   children: ReactNode;
@@ -38,7 +39,13 @@ class ErrorBoundary extends Component<Props, State> {
       errorInfo: errorInfo.componentStack || undefined,
     });
 
-    // Log to error reporting service with more details
+    // Enhanced logging with our logger
+    logger.logComponentError('ErrorBoundary', error, {
+      componentStack: errorInfo.componentStack,
+      errorBoundary: true,
+    });
+
+    // Also keep console logging for immediate debugging
     console.error('ErrorBoundary caught an error:', {
       error: error,
       errorInfo: errorInfo,
@@ -113,14 +120,22 @@ class ErrorBoundary extends Component<Props, State> {
               </Box>
             )}
 
-            <Button
-              variant="contained"
-              startIcon={<RefreshIcon />}
-              onClick={this.handleReset}
-              sx={{ mt: 2 }}
-            >
-              Try Again
-            </Button>
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mt: 2 }}>
+              <Button
+                variant="contained"
+                startIcon={<RefreshIcon />}
+                onClick={this.handleReset}
+              >
+                Try Again
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={() => logger.downloadLogs()}
+              >
+                Download Logs
+              </Button>
+            </Box>
           </Paper>
         </Box>
       );

@@ -10,7 +10,6 @@ import {
   Avatar,
   Tooltip,
   Box,
-  useTheme,
   alpha,
 } from '@mui/material';
 import {
@@ -23,6 +22,7 @@ import {
   Business as BusinessIcon,
 } from '@mui/icons-material';
 import type { Employee } from '../types';
+import { safeStopPropagation } from '../../../lib/utils';
 
 interface EmployeeCardProps {
   employee: Employee;
@@ -31,7 +31,6 @@ interface EmployeeCardProps {
 }
 
 const EmployeeCard = memo(({ employee, onEdit, onDelete }: EmployeeCardProps) => {
-  const theme = useTheme();
   const [isHovered, setIsHovered] = useState(false);
 
   const getInitials = useCallback((firstName: string, lastName: string) => {
@@ -40,24 +39,24 @@ const EmployeeCard = memo(({ employee, onEdit, onDelete }: EmployeeCardProps) =>
 
   const getAvatarColor = useCallback((name: string) => {
     const colors = [
-      theme.palette.primary.main,
-      theme.palette.secondary.main,
-      theme.palette.error.main,
-      theme.palette.warning.main,
-      theme.palette.info.main,
-      theme.palette.success.main,
+      '#1976d2',
+      '#dc004e',
+      '#d32f2f',
+      '#ed6c02',
+      '#0288d1',
+      '#2e7d32',
     ];
     const index = name.charCodeAt(0) % colors.length;
     return colors[index];
-  }, [theme.palette]);
+  }, []);
 
   const handleEdit = useCallback((e: React.MouseEvent) => {
-    e?.stopPropagation();
+    safeStopPropagation(e);
     onEdit(employee);
   }, [employee, onEdit]);
 
   const handleDelete = useCallback((e: React.MouseEvent) => {
-    e?.stopPropagation();
+    safeStopPropagation(e);
     onDelete(employee);
   }, [employee, onDelete]);
 
@@ -81,16 +80,13 @@ const EmployeeCard = memo(({ employee, onEdit, onDelete }: EmployeeCardProps) =>
         flexDirection: 'column',
         position: 'relative',
         borderRadius: 2,
-        transition: theme.transitions.create(['transform', 'box-shadow', 'border-color'], {
-          duration: theme.transitions.duration.short,
-          easing: theme.transitions.easing.easeInOut,
-        }),
-        boxShadow: isHovered ? theme.shadows[4] : theme.shadows[1],
-        border: `1px solid ${isHovered ? theme.palette.primary.light : 'transparent'}`,
+        transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out',
+        boxShadow: isHovered ? '0px 4px 20px rgba(0,0,0,0.1)' : '0px 2px 10px rgba(0,0,0,0.05)',
+        border: `1px solid ${isHovered ? '#42a5f5' : 'transparent'}`,
         '&:hover': {
           transform: 'translateY(-5px)',
-          boxShadow: theme.shadows[8],
-          borderColor: theme.palette.primary.main,
+          boxShadow: '0px 8px 30px rgba(0,0,0,0.15)',
+          borderColor: '#1976d2',
         },
       }}
     >
@@ -113,7 +109,7 @@ const EmployeeCard = memo(({ employee, onEdit, onDelete }: EmployeeCardProps) =>
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: `linear-gradient(135deg, ${alpha(getAvatarColor(employee.firstName), 0.1)} 0%, ${alpha(getAvatarColor(employee.lastName), 0.1)} 100%)`,
+              background: `linear-gradient(135deg, ${alpha(getAvatarColor(employee.firstName || 'A'), 0.1)} 0%, ${alpha(getAvatarColor(employee.lastName || 'B'), 0.1)} 100%)`,
             }}
           >
             <Avatar
@@ -121,12 +117,12 @@ const EmployeeCard = memo(({ employee, onEdit, onDelete }: EmployeeCardProps) =>
                 width: 80,
                 height: 80,
                 fontSize: '2rem',
-                bgcolor: getAvatarColor(employee.firstName),
-                boxShadow: theme.shadows[2],
+                bgcolor: getAvatarColor(employee.firstName || 'A'),
+                boxShadow: '0px 2px 10px rgba(0,0,0,0.1)',
                 fontWeight: 600,
               }}
             >
-              {getInitials(employee.firstName, employee.lastName)}
+              {getInitials(employee.firstName || 'A', employee.lastName || 'B')}
             </Avatar>
           </Box>
         )}
@@ -146,10 +142,10 @@ const EmployeeCard = memo(({ employee, onEdit, onDelete }: EmployeeCardProps) =>
                 size="small"
                 onClick={handleEdit}
                 sx={{
-                  bgcolor: alpha(theme.palette.background.paper, 0.9),
+                  bgcolor: alpha('#fff', 0.9),
                   backdropFilter: 'blur(8px)',
                   '&:hover': {
-                    bgcolor: theme.palette.primary.main,
+                    bgcolor: '#1976d2',
                     color: 'white',
                   },
                 }}
@@ -162,10 +158,10 @@ const EmployeeCard = memo(({ employee, onEdit, onDelete }: EmployeeCardProps) =>
                 size="small"
                 onClick={handleDelete}
                 sx={{
-                  bgcolor: alpha(theme.palette.background.paper, 0.9),
+                  bgcolor: alpha('#fff', 0.9),
                   backdropFilter: 'blur(8px)',
                   '&:hover': {
-                    bgcolor: theme.palette.error.main,
+                    bgcolor: '#d32f2f',
                     color: 'white',
                   },
                 }}
@@ -199,7 +195,7 @@ const EmployeeCard = memo(({ employee, onEdit, onDelete }: EmployeeCardProps) =>
 
         <Stack spacing={1} sx={{ mb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <WorkIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, flexShrink: 0 }} />
+            <WorkIcon sx={{ fontSize: 16, color: 'rgba(0, 0, 0, 0.6)', flexShrink: 0 }} />
             <Typography
               variant="body2"
               color="text.secondary"
@@ -215,7 +211,7 @@ const EmployeeCard = memo(({ employee, onEdit, onDelete }: EmployeeCardProps) =>
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <BusinessIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, flexShrink: 0 }} />
+            <BusinessIcon sx={{ fontSize: 16, color: 'rgba(0, 0, 0, 0.6)', flexShrink: 0 }} />
             <Typography
               variant="body2"
               color="text.secondary"
@@ -231,7 +227,7 @@ const EmployeeCard = memo(({ employee, onEdit, onDelete }: EmployeeCardProps) =>
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <LocationIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, flexShrink: 0 }} />
+            <LocationIcon sx={{ fontSize: 16, color: 'rgba(0, 0, 0, 0.6)', flexShrink: 0 }} />
             <Typography
               variant="body2"
               color="text.secondary"
@@ -265,15 +261,15 @@ const EmployeeCard = memo(({ employee, onEdit, onDelete }: EmployeeCardProps) =>
                 cursor: 'pointer',
                 fontSize: '0.75rem',
                 height: 28,
-                borderColor: alpha(theme.palette.primary.main, 0.3),
-                color: theme.palette.primary.main,
+                borderColor: alpha('#1976d2', 0.3),
+                color: '#1976d2',
                 '&:hover': {
-                  bgcolor: alpha(theme.palette.primary.main, 0.08),
-                  borderColor: theme.palette.primary.main,
+                  bgcolor: alpha('#1976d2', 0.08),
+                  borderColor: '#1976d2',
                 },
                 '& .MuiChip-icon': {
                   fontSize: 16,
-                  color: theme.palette.primary.main,
+                  color: '#1976d2',
                 },
               }}
             />
@@ -290,15 +286,15 @@ const EmployeeCard = memo(({ employee, onEdit, onDelete }: EmployeeCardProps) =>
                   cursor: 'pointer',
                   fontSize: '0.75rem',
                   height: 28,
-                  borderColor: alpha(theme.palette.success.main, 0.3),
-                  color: theme.palette.success.main,
+                  borderColor: alpha('#2e7d32', 0.3),
+                  color: '#2e7d32',
                   '&:hover': {
-                    bgcolor: alpha(theme.palette.success.main, 0.08),
-                    borderColor: theme.palette.success.main,
+                    bgcolor: alpha('#2e7d32', 0.08),
+                    borderColor: '#2e7d32',
                   },
                   '& .MuiChip-icon': {
                     fontSize: 16,
-                    color: theme.palette.success.main,
+                    color: '#2e7d32',
                   },
                 }}
               />

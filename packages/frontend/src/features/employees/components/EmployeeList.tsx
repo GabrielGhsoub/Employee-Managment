@@ -17,7 +17,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  useTheme,
   alpha,
 } from '@mui/material';
 import {
@@ -28,6 +27,7 @@ import {
 } from '@mui/icons-material';
 import type { Employee } from '../types';
 import EmployeeCard from './EmployeeCard';
+import { safeStopPropagation } from '../../../lib/utils';
 
 interface EmployeeListProps {
   employees: Employee[];
@@ -54,7 +54,9 @@ const EmployeeList = memo(function EmployeeList({
   viewMode,
   isLoading = false,
 }: EmployeeListProps) {
-  const theme = useTheme();
+  const safeColor = useCallback((color: string | undefined, fallback: string) => {
+    return color || fallback;
+  }, []);
 
   const handleChangePage = useCallback((_: unknown, newPage: number) => {
     onPageChange(newPage);
@@ -71,16 +73,16 @@ const EmployeeList = memo(function EmployeeList({
 
   const getAvatarColor = useCallback((name: string) => {
     const colors = [
-      theme.palette.primary.main,
-      theme.palette.secondary.main,
-      theme.palette.error.main,
-      theme.palette.warning.main,
-      theme.palette.info.main,
-      theme.palette.success.main,
+      '#1976d2',
+      '#dc004e',
+      '#d32f2f',
+      '#ed6c02',
+      '#0288d1',
+      '#2e7d32',
     ];
     const index = name.charCodeAt(0) % colors.length;
     return colors[index];
-  }, [theme.palette]);
+  }, []);
 
   const renderSkeletons = useCallback(() => {
     const skeletonCount = Math.min(rowsPerPage, 8);
@@ -130,7 +132,7 @@ const EmployeeList = memo(function EmployeeList({
       elevation={0}
       sx={{
         borderRadius: 2,
-        border: `1px solid ${theme.palette.divider}`,
+        border: `1px solid rgba(0, 0, 0, 0.12)`,
       }}
     >
       <Table sx={{ minWidth: { xs: 300, sm: 650 } }}>
@@ -164,7 +166,7 @@ const EmployeeList = memo(function EmployeeList({
                 sx={{
                   cursor: 'pointer',
                   '&:hover': {
-                    bgcolor: alpha(theme.palette.primary.main, 0.05),
+                    bgcolor: alpha(safeColor('#1976d2', '#1976d2'), 0.05),
                   }
                 }}
               >
@@ -205,13 +207,13 @@ const EmployeeList = memo(function EmployeeList({
                       <IconButton
                         size="small"
                         onClick={(e) => {
-                          e.stopPropagation();
+                          safeStopPropagation(e);
                           window.location.href = `mailto:${employee.email}`;
                         }}
                         sx={{
-                          color: theme.palette.primary.main,
+                          color: '#1976d2',
                           '&:hover': {
-                            bgcolor: alpha(theme.palette.primary.main, 0.1),
+                            bgcolor: alpha('#1976d2', 0.1),
                           },
                         }}
                       >
@@ -223,13 +225,13 @@ const EmployeeList = memo(function EmployeeList({
                         <IconButton
                           size="small"
                           onClick={(e) => {
-                            e.stopPropagation();
+                            safeStopPropagation(e);
                             window.location.href = `tel:${employee.phone}`;
                           }}
                           sx={{
-                            color: theme.palette.success.main,
+                            color: '#2e7d32',
                             '&:hover': {
-                              bgcolor: alpha(theme.palette.success.main, 0.1),
+                              bgcolor: alpha('#2e7d32', 0.1),
                             },
                           }}
                         >
@@ -245,13 +247,13 @@ const EmployeeList = memo(function EmployeeList({
                       <IconButton
                         size="small"
                         onClick={(e) => {
-                          e.stopPropagation();
+                          safeStopPropagation(e);
                           onEdit(employee);
                         }}
                         sx={{
-                          color: theme.palette.info.main,
+                          color: '#0288d1',
                           '&:hover': {
-                            bgcolor: alpha(theme.palette.info.main, 0.1),
+                            bgcolor: alpha('#0288d1', 0.1),
                           },
                         }}
                       >
@@ -262,13 +264,13 @@ const EmployeeList = memo(function EmployeeList({
                       <IconButton
                         size="small"
                         onClick={(e) => {
-                          e.stopPropagation();
+                          safeStopPropagation(e);
                           onDelete(employee);
                         }}
                         sx={{
-                          color: theme.palette.error.main,
+                          color: '#d32f2f',
                           '&:hover': {
-                            bgcolor: alpha(theme.palette.error.main, 0.1),
+                            bgcolor: alpha('#d32f2f', 0.1),
                           },
                         }}
                       >
@@ -299,7 +301,7 @@ const EmployeeList = memo(function EmployeeList({
         rowsPerPageOptions={[6, 12, 24, 48]}
         sx={{
           mt: 3,
-          borderTop: `1px solid ${theme.palette.divider}`,
+          borderTop: `1px solid rgba(0, 0, 0, 0.12)`,
           // [CHANGE] Simplified and improved pagination styles for responsiveness
           '.MuiTablePagination-toolbar': {
             display: 'flex',
@@ -309,7 +311,7 @@ const EmployeeList = memo(function EmployeeList({
             gap: 2,
             py: 1,
             px: 2,
-            [theme.breakpoints.up('sm')]: {
+            '@media (min-width:600px)': {
               justifyContent: 'flex-end',
             },
           },

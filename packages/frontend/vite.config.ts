@@ -12,8 +12,18 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: env.VITE_PROXY_TARGET,
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, ''),
         },
+      },
+    },
+    build: {
+      // Generate source maps for better debugging in production
+      sourcemap: true,
+      // Keep function and variable names for easier debugging
+      minify: 'terser',
+      terserOptions: {
+        mangle: false, // Don't mangle names
+        keep_fnames: true, // Keep function names
+        keep_classnames: true, // Keep class names
       },
     },
   }

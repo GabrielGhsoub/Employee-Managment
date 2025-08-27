@@ -1,5 +1,20 @@
 #!/bin/bash
 
+# Employee Management System Deployment Script
+# 
+# Usage Examples:
+#   Basic deployment:     ./deploy.sh
+#   With custom domain:   DOMAIN=empmanagement.online ./deploy.sh
+#   With SSL setup:       DOMAIN=empmanagement.online SSL_EMAIL=admin@empmanagement.online ./deploy.sh
+#   Full production:      DOMAIN=empmanagement.online SSL_EMAIL=admin@empmanagement.online USE_HTTPS=true ./deploy.sh
+#
+# This script will:
+# 1. Pull latest code from git
+# 2. Make all scripts executable
+# 3. Install dependencies and build applications
+# 4. Deploy with PM2 and Nginx
+# 5. Setup SSL certificate (if SSL_EMAIL provided)
+
 set -e
 
 # Colors for output
@@ -10,15 +25,22 @@ NC='\033[0m' # No Color
 
 # Configuration
 APP_DIR="/opt/employee-management"
-BACKUP_DIR="/opt/backups/employee-management"
 LOG_FILE="/var/log/employee-management-deploy.log"
 SERVER_IP="${SERVER_IP:-127.0.0.1}"
 DOMAIN="${DOMAIN:-$SERVER_IP}"
 USE_HTTPS="${USE_HTTPS:-false}"
+SSL_EMAIL="${SSL_EMAIL:-}"
 
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
 }
+
+# Display configuration
+log "Deployment Configuration:"
+log "  APP_DIR: $APP_DIR"
+log "  DOMAIN: $DOMAIN"
+log "  SSL_EMAIL: ${SSL_EMAIL:-'not set'}"
+log "  USE_HTTPS: $USE_HTTPS"
 
 error_exit() {
     echo -e "${RED}ERROR: $1${NC}" >&2
@@ -43,21 +65,25 @@ fi
 
 log "Starting deployment process..."
 
-# Create backup directory
-mkdir -p "$BACKUP_DIR"
-
-# Backup current deployment if it exists
-if [ -d "$APP_DIR/current" ]; then
-    log "Creating backup of current deployment..."
-    BACKUP_NAME="backup-$(date +%Y%m%d-%H%M%S)"
-    rsync -a --delete "$APP_DIR/current/" "$BACKUP_DIR/$BACKUP_NAME/"
-    success "Backup created: $BACKUP_DIR/$BACKUP_NAME"
-fi
-
 # Ensure the 'current' directory exists
 mkdir -p "$APP_DIR/current"
 
 cd "$APP_DIR/current"
+
+# Pull latest code from repository
+log "Pulling latest code from repository..."
+if [ -d ".git" ]; then
+    git reset --hard origin/main
+    git pull origin main
+    success "Code updated from repository"
+else
+    warning "Not a git repository - skipping git pull"
+fi
+
+# Make deployment scripts executable
+log "Making deployment scripts executable..."
+chmod +x scripts/*.sh 2>/dev/null || warning "No scripts directory found or chmod failed"
+success "Scripts made executable"
 
 # Install Node.js if not present
 if ! command -v node &> /dev/null; then
@@ -74,66 +100,36 @@ if ! command -v pnpm &> /dev/null; then
     success "pnpm installed"
 fi
 
-# Check for build artifacts and build if needed
-backend_needs_build=false
-frontend_needs_build=false
+# Always build both backend and frontend for fresh deployment
+log "Installing all dependencies (including dev) for building..."
+# Remove any existing node_modules to ensure clean install
+rm -rf node_modules packages/*/node_modules 2>/dev/null || true
+pnpm install --frozen-lockfile
+success "All dependencies installed for building"
 
+# Always build backend
 if [ -d "packages/backend" ]; then
-    if [ -d "packages/backend/dist" ] && [ "$(ls -A packages/backend/dist 2>/dev/null)" ]; then
-        log "Backend build artifacts found, skipping build step"
-        success "Backend build skipped (artifacts present)"
-    else
-        log "Backend needs building"
-        backend_needs_build=true
+    log "Building backend..."
+    if ! pnpm --filter backend build; then
+        error_exit "Backend build failed"
     fi
+    success "Backend built"
 fi
 
+# Always build frontend
 if [ -d "packages/frontend" ]; then
-    if [ -d "packages/frontend/dist" ] && [ "$(ls -A packages/frontend/dist 2>/dev/null)" ]; then
-        log "Frontend build artifacts found, skipping build step"
-        success "Frontend build skipped (artifacts present)"
-    else
-        log "Frontend needs building"
-        frontend_needs_build=true
+    log "Building frontend..."
+    if ! pnpm --filter frontend build; then
+        error_exit "Frontend build failed"
     fi
+    success "Frontend built"
 fi
 
-# If building is needed, install ALL dependencies (including dev) first
-if [ "$backend_needs_build" = true ] || [ "$frontend_needs_build" = true ]; then
-    log "Installing all dependencies (including dev) for building..."
-    # Remove any existing node_modules to ensure clean install
-    rm -rf node_modules packages/*/node_modules 2>/dev/null || true
-    pnpm install --frozen-lockfile
-    success "All dependencies installed for building"
-    
-    if [ "$backend_needs_build" = true ]; then
-        log "Building backend..."
-        if ! pnpm --filter backend build; then
-            error_exit "Backend build failed"
-        fi
-        success "Backend built"
-    fi
-    
-    if [ "$frontend_needs_build" = true ]; then
-        log "Building frontend..."
-        if ! pnpm --filter frontend build; then
-            error_exit "Frontend build failed"
-        fi
-        success "Frontend built"
-    fi
-    
-    # After building, clean install production dependencies only
-    log "Cleaning and installing production dependencies..."
-    rm -rf node_modules packages/*/node_modules 2>/dev/null || true
-    pnpm install --prod --frozen-lockfile
-    success "Production dependencies installed"
-else
-    log "All build artifacts present, installing production dependencies only..."
-    # Clean install to ensure consistency
-    rm -rf node_modules packages/*/node_modules 2>/dev/null || true
-    pnpm install --prod --frozen-lockfile
-    success "Production dependencies installed"
-fi
+# After building, clean install production dependencies only
+log "Cleaning and installing production dependencies..."
+rm -rf node_modules packages/*/node_modules 2>/dev/null || true
+pnpm install --prod --frozen-lockfile
+success "Production dependencies installed"
 
 # Install PM2 if not present
 if ! command -v pm2 &> /dev/null; then
@@ -393,6 +389,25 @@ else
 fi
 
 log "Deployment completed!"
+
+# Setup SSL if domain is provided and not localhost
+if [ "$DOMAIN" != "127.0.0.1" ] && [ "$DOMAIN" != "localhost" ] && [ -n "$SSL_EMAIL" ]; then
+    log "Setting up SSL certificate..."
+    if [ -f "scripts/setup-ssl.sh" ]; then
+        chmod +x scripts/setup-ssl.sh
+        ./scripts/setup-ssl.sh "$DOMAIN" "$SSL_EMAIL"
+        success "SSL setup completed"
+        USE_HTTPS="true"
+    else
+        warning "SSL setup script not found at scripts/setup-ssl.sh"
+    fi
+elif [ -z "$SSL_EMAIL" ]; then
+    warning "SSL_EMAIL not provided - skipping SSL setup"
+    log "To setup SSL later, run: SSL_EMAIL=your@email.com ./scripts/setup-ssl.sh $DOMAIN your@email.com"
+else
+    log "Skipping SSL setup for localhost/IP domain"
+fi
+
 APP_URL="http://$DOMAIN"
 if [ "$USE_HTTPS" = "true" ]; then
     APP_URL="https://$DOMAIN"
@@ -406,3 +421,15 @@ pm2 list
 echo ""
 echo "=== Recent Logs ==="
 pm2 logs --lines 10 --nostream
+echo ""
+echo "=== Deployment Summary ==="
+echo "Domain: $DOMAIN"
+echo "HTTPS: $USE_HTTPS"
+echo "Application URL: $APP_URL"
+echo "Backend API: $APP_URL/api"
+echo "Health Check: $APP_URL/api/health"
+if [ "$USE_HTTPS" = "false" ] && [ "$DOMAIN" != "127.0.0.1" ] && [ "$DOMAIN" != "localhost" ]; then
+    echo ""
+    echo "💡 To enable HTTPS, run:"
+    echo "SSL_EMAIL=your@email.com DOMAIN=$DOMAIN ./scripts/deploy.sh"
+fi

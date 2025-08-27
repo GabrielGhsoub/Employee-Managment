@@ -90,6 +90,38 @@ export const safeGetEventValue = (event: unknown): string => {
 };
 
 /**
+ * Safely stop event propagation with null checks
+ */
+export const safeStopPropagation = (event: unknown): void => {
+  try {
+    if (event && typeof event === 'object' && 'stopPropagation' in event) {
+      const e = event as { stopPropagation?: () => void };
+      if (typeof e.stopPropagation === 'function') {
+        e.stopPropagation();
+      }
+    }
+  } catch {
+    // Silently fail
+  }
+};
+
+/**
+ * Safely prevent default event behavior with null checks
+ */
+export const safePreventDefault = (event: unknown): void => {
+  try {
+    if (event && typeof event === 'object' && 'preventDefault' in event) {
+      const e = event as { preventDefault?: () => void };
+      if (typeof e.preventDefault === 'function') {
+        e.preventDefault();
+      }
+    }
+  } catch {
+    // Silently fail
+  }
+};
+
+/**
  * Safely handle any data that might be null/undefined/malformed
  */
 export const safeGet = <T>(data: unknown, defaultValue: T): T => {

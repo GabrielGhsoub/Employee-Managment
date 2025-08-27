@@ -75,13 +75,11 @@ export class EmployeesController {
     status: 200,
     description: 'A paginated list of employees.',
   })
-  async find(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Query() query: QueryEmployeeDto,
-  ) {
+  async find(@Query() query: QueryEmployeeDto) {
     const employees = await this.employeesService.find(query);
 
+    const page = query.page || 1;
+    const limit = query.limit || 10;
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
     const paginatedData = employees.slice(startIndex, endIndex);

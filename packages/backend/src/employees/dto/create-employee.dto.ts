@@ -1,7 +1,7 @@
 // src/employees/dto/create-employee.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, IsOptional, IsUrl, MinLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmail, IsNotEmpty, IsString, IsOptional, IsUrl, MinLength, ValidateIf } from 'class-validator';
 
 export class CreateEmployeeDto {
   @ApiProperty({ description: 'First name of the employee', example: 'John' })
@@ -21,13 +21,14 @@ export class CreateEmployeeDto {
   @IsEmail()
   email!: string;
 
-  @ApiProperty({ description: 'Phone number of the employee', example: '123-456-7890' })
+  @ApiPropertyOptional({ description: 'Phone number of the employee', example: '123-456-7890' })
   @IsOptional()
   @IsString()
   phone?: string;
 
-  @ApiProperty({ description: 'URL to the employee\'s picture', example: 'https://randomuser.me/api/portraits/men/1.jpg' })
+  @ApiPropertyOptional({ description: 'URL to the employee\'s picture', example: 'https://randomuser.me/api/portraits/men/1.jpg' })
   @IsOptional()
+  @ValidateIf((object, value) => value !== '' && value != null)
   @IsUrl()
   pictureUrl?: string;
 

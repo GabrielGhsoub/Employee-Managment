@@ -202,8 +202,11 @@ if [ -d "packages/backend/dist" ]; then
         fi
     fi
     
+    # Remove old main.cjs to ensure fresh deployment
+    rm -f dist/main.cjs
+    
     # Rename main.js to main.cjs to ensure CommonJS execution
-    if [ -f "dist/main.js" ] && [ ! -f "dist/main.cjs" ]; then
+    if [ -f "dist/main.js" ]; then
         log "Renaming main.js to main.cjs for CommonJS compatibility..."
         mv dist/main.js dist/main.cjs
         success "Backend main file renamed to .cjs"
